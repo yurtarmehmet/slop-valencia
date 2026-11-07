@@ -150,7 +150,7 @@ for w in roads:
     half = {'pedestrian': 2.5, 'living_street': 2.5, 'residential': 4.0, 'service': 3.0}.get(t.get('highway'), 4.0)
     if sl == 'kerb' and sr == 'kerb' or (sl and sr and 'kerb' in (sl, sr)):
         # kerbs both sides, or a kerb on one and the facade (no sidewalk) on the other
-        if 1.0 <= dl + dr <= 60:
+        if 2.0 <= dl + dr <= 60:  # a roadway under 2 m is a stray kerb (an island, a planter), not the street
             rec = [round(dl, 2), round(dr, 2), 0]
             stats['kerbed'] += 1
             asym.append(abs(dl - dr) / 2)
@@ -158,7 +158,7 @@ for w in roads:
         # no kerb at all: facade to facade (a side without facades, a garden wall or a gap, keeps the rule half width)
         rl = dl if sl == 'wall' else half
         rr = dr if sr == 'wall' else half
-        if 1.5 <= rl + rr <= 16:
+        if 2.0 <= rl + rr <= 16:
             rec = [round(rl, 2), round(rr, 2), 1]
             stats['shared'] += 1
     if os.environ.get('KERB_DEBUG') == str(w['id']):

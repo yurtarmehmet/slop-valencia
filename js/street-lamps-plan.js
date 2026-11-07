@@ -312,18 +312,18 @@ export function planStreetLamps(walls, data, opts = {}) {
     }
     if (!lamp) {
       let px = x, pz = z;
-      if (!onBlock) {
-        // a pole mapped on the engine's roadway: onto the nearest kerb within 3 m
+      if (!blockAt(x, z)) {
+        // a pole mapped on the engine's roadway (the measured kerbs and the lamp's surveyed spot can disagree by a few
+        // metres): onto the nearest kerb, or a park's edge (its path lamps), within 5 m
         let found = null;
-        for (let r = 0.5; r <= 3 && !found; r += 0.5) {
+        for (let r = 0.5; r <= 5 && !found; r += 0.5) {
           for (let a = 0; a < 12; a++) {
             const qx = x + Math.cos(a * Math.PI / 6) * r, qz = z + Math.sin(a * Math.PI / 6) * r;
             const b = blockAt(qx, qz);
-            if (b && !b.median && !(b.park > 0.6)) { found = { x: qx, z: qz }; break; }
+            if (b && !b.median) { found = { x: qx, z: qz }; break; }
           }
         }
         if (found) { px = found.x; pz = found.z; stats.dataSnapped++; }
-        else if (blockAt(x, z)) { /* in a park or on a median: keep it there */ }
         else { stats.dataDropped++; stats.droppedAt.push([x, z]); continue; }
       }
       let type;
