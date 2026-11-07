@@ -1,0 +1,34 @@
+{
+ "grid": {
+  "nx": 325,
+  "nz": 260,
+  "x0": -1500.0,
+  "z0": -1700.0,
+  "cell": 20.0,
+  "scale": 0.0025
+ },
+ "blocks": 4929,
+ "blocks_in_detail": 2552,
+ "blocks_in_detail_with_residents": 1984,
+ "block_population_fields_published": [],
+ "barris": 88,
+ "barri_residents_total": 795736,
+ "catastro_buildings": 33559,
+ "catastro_dwellings": 412335,
+ "residents_placed_on_grid": 495533,
+ "residents_in_detail_blocks": 479958,
+ "work_parts": 9379,
+ "shops": 6403,
+ "shops_on_grid": 4578,
+ "shops_food": 2761,
+ "people_per_m_midday": {
+  "10": 0.0075,
+  "25": 0.0175,
+  "50": 0.04,
+  "75": 0.065,
+  "90": 0.0875,
+  "98": 0.13,
+  "99.5": 0.1675
+ },
+ "bytes_gz": 44460
+}

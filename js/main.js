@@ -6,10 +6,15 @@ import { ClusteredLighting } from 'three/addons/lighting/ClusteredLighting.js';
 import { getLocationLabel, isTypingInField, ROADS, CITY_LANDMARKS, TELEPORT_LOCATIONS, SPAWN } from './city-config.js';
 import { buildCityGrid } from './city-grid.js';
 import { buildBoroughs } from './boroughs.js';
-import { buildLandmarks } from './landmarks.js';
+import { buildLandmarks, landmarkTops } from './landmarks.js';
 import { buildCityBlocks } from './buildings.js';
 import { buildStreetDetails } from './street-details.js';
+import { buildFurniture } from './vlc-furniture.js';
+import { buildStreetPlates } from './vlc-plates.js';
 import { createTrafficSystem, createHighwayTraffic } from './traffic.js';
+import { buildParkedVehicles } from './vlc-parked.js';
+import { createPlazaCrowd } from './plaza-crowd.js';
+import { setFootfallTime } from './vlc-footfall.js';
 import { buildRoadPaint } from './road-paint.js';
 import { ThirdPersonControllerManager } from './controllers.js';
 import { TouchControls } from './touch-controls.js';
@@ -69,7 +74,7 @@ async function initApp() {
   markInit('lighting');
 
   if (loadingStatus) {
-    loadingStatus.textContent = 'Construyendo el Eixample, Ciutat Vella, los monumentos y las calles…';
+    loadingStatus.textContent = 'Construyendo Ciutat Vella, el Ensanche, el Túria y las calles…';
   }
 
   // 3. Build Barcelona's Geography, Landmarks, Blocks, Street Details & Traffic
@@ -85,6 +90,12 @@ async function initApp() {
 
   const streetDetails = buildStreetDetails(scene);
   markInit('streetDetails');
+  // València's street furniture & traffic signs from the city's inventories (vlc-furniture.js, culls itself)
+  const furniture = await buildFurniture(scene);
+  markInit('furniture');
+  // Street-name plates at the corners & door numbers (vlc-plates.js; lettering built near the camera)
+  const streetPlates = await buildStreetPlates(scene);
+  markInit('plates');
   // Buildings turned along non-grid streets have oriented colliders whose world bounds reach past their lots: they stay
   // inside the property line anyway, so the road network (lanes & sidewalks) doesn't need them.
   // Elevated building sections that clear even a bus don't obstruct ground traffic.
@@ -95,15 +106,22 @@ async function initApp() {
   ], streetDetails.signalIntersections);
   markInit('traffic');
   const highwayTraffic = createHighwayTraffic(scene, cityGrid.highwayLanes);
+  // Parked cars & motorbikes in the real bays (vlc-parked.js, culls itself), solid to the player like the buildings
+  const parkedVehicles = buildParkedVehicles(scene, { network: trafficSystem.network });
+  for (const c of parkedVehicles.colliders) allColliders.push(c);
+  markInit('parked');
   buildRoadPaint(scene, trafficSystem.network);
   markInit('roadPaint');
 
   // 4. Initialize Third-Person Controllers (Person, Car, Cyclist, Scooter, Helicopter) & Multi-Camera System
   const controllerManager = new ThirdPersonControllerManager(scene, allColliders);
+  // The crowd on the Plaça de l'Ajuntament (free-roaming, beside the sidewalk pedestrians)
+  const plazaCrowd = createPlazaCrowd(scene, { colliders: allColliders, ground: (x, z) => controllerManager.getGroundHeight(x, z, 'person') });
+  markInit('plazaCrowd');
   // Reuse teleport placement so saved players return at rest, close to their last positions.
   let restored = false;
   try {
-    const saved = JSON.parse(localStorage.getItem('bcn-player-state'));
+    const saved = JSON.parse(localStorage.getItem('vlc-player-state'));
     if (saved?.version === 1) {
       for (const mode of Object.keys(controllerManager.entities)) {
         const p = saved.entities?.[mode];
@@ -129,11 +147,26 @@ async function initApp() {
       const entities = Object.fromEntries(Object.entries(controllerManager.entities).map(([mode, entity]) => [mode, {
         x: entity.position.x, y: entity.position.y, z: entity.position.z, heading: entity.heading
       }]));
-      localStorage.setItem('bcn-player-state', JSON.stringify({ version: 1, activeMode: controllerManager.activeMode, entities }));
+      localStorage.setItem('vlc-player-state', JSON.stringify({ version: 1, activeMode: controllerManager.activeMode, entities }));
     } catch { /* Storage may be disabled or full. */ }
   }
 
   const cameraSystem = new CameraSystem(renderer.domElement, controllerManager);
+  // ?debug: a handle for tools (reference renders, checks): __slop.look(x, y, z, lx, ly, lz) holds a still camera
+  if (new URLSearchParams(location.search).has('debug')) {
+    window.__slop = {
+      scene,
+      trafficSystem,
+      cameraSystem,
+      controllerManager,
+      landmarkTops,
+      look(x, y, z, lx, ly, lz) {
+        cameraSystem.fixedPos = new THREE.Vector3(x, y, z);
+        cameraSystem.fixedLook = new THREE.Vector3(lx, ly, lz);
+        cameraSystem.setCameraPreset('fixed', true);
+      }
+    };
+  }
   const touchControls = new TouchControls(controllerManager);
   const soundButton = document.getElementById('btn-sound');
   const audioSystem = new CityAudioSystem({ controllerManager, trafficSystem, highwayTraffic, streetDetails }, {
@@ -159,7 +192,7 @@ async function initApp() {
 
   // Island-wide static geometry: chunk & distance-cull the small props, shadow stand-ins for the big casters
   // (scene-culling.js)
-  const cullingRoots = ['CityGrid', 'CityBlocks', 'StreetDetails', 'Landmarks', 'Boroughs']
+  const cullingRoots = ['CityGrid', 'CityBlocks', 'StreetDetails', 'Landmarks', 'Boroughs', 'StreetPlates']
     .map((name) => scene.getObjectByName(name))
     .filter(Boolean);
   setupSceneCulling(scene, cullingRoots, lightingSystem.sunLight.shadow);
@@ -343,6 +376,7 @@ async function initApp() {
   function selectTime(timeId) {
     lightingSystem.applyPreset(timeId);
     colorGrade.applyPreset(lightingSystem.activePresetId);
+    setFootfallTime(lightingSystem.activePresetId); // how many people are out (vlc-footfall.js)
     timeButtons.forEach((btn) => {
       btn.classList.toggle('active', btn.getAttribute('data-time') === timeId);
     });
@@ -546,10 +580,10 @@ async function initApp() {
         selectCamera('pov', true);
         break;
       case 'Digit9':
-        selectCamera('sagrada', true);
+        selectCamera('micalet', true);
         break;
       case 'Digit0':
-        selectCamera('gracia', true);
+        selectCamera('cac', true);
         break;
       case 'KeyV':
         cycleCamera(e.shiftKey ? -1 : 1);
@@ -698,6 +732,7 @@ async function initApp() {
       cameraSystem.camera
     );
     highwayTraffic.update(dt, cameraSystem.camera, controllerManager.getActiveEntity(), controllerManager.activeMode);
+    plazaCrowd.update(dt, elapsed, cameraSystem.camera, controllerManager.getActiveEntity(), controllerManager.activeMode);
     if (!document.hidden && now >= nextPlayerSave) {
       savePlayerState();
       nextPlayerSave = now + 5000;
@@ -710,6 +745,9 @@ async function initApp() {
     mapSystem.update();
     audioSystem.update(dt, elapsed, cameraSystem.camera, lightingSystem.activePresetId === 'midnight');
     if (warmedUp) updateSceneCulling(cameraSystem.camera.position); // the warm-up frame draws every chunk
+    parkedVehicles.update(cameraSystem.camera.position);
+    if (warmedUp) furniture.update(cameraSystem.camera.position);
+    streetPlates.update(cameraSystem.camera.position);
     // Traffic collisions can move the player after controller updates; finalize moving hierarchies here.
     for (const root of dynamicRoots) root.updateMatrixWorld();
 

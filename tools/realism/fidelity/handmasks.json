@@ -1,0 +1,14 @@
+{
+ "note": "Hand-drawn Google UI masks (1280x720 pixel coords, rects [x0,y0,x1,y1], polygons [[x,y],...]) for views where Google now serves a different pano than the stored capture, so svmask.mjs's fresh overlay shot does not line up. Drawn on the stored capture; only the analysis crop (x 358-1114, y 0-590) matters.",
+ "main": {
+  "16": {"why": "fresh capture is a Sep 2026 pano, stored is Apr 2023",
+         "rects": [[0, 0, 400, 66], [0, 66, 398, 216], [584, 478, 664, 512]]},
+  "20": {"why": "fresh capture is a different pano",
+         "rects": [[0, 0, 400, 66], [0, 66, 368, 216], [776, 472, 905, 497], [861, 546, 1050, 592]],
+         "polys": [[[434, 522], [440, 470], [505, 428], [530, 416], [600, 404], [602, 510], [510, 500], [455, 528]]]}
+ },
+ "heldout": {
+  "h16": {"why": "fresh capture is a different pano",
+          "rects": [[0, 0, 400, 66], [0, 66, 396, 216], [362, 326, 412, 376], [428, 334, 470, 378], [590, 480, 670, 514]]}
+ }
+}

@@ -1168,8 +1168,8 @@ function createLoftedCarMaterial(spec, fixedColorHex = null) {
   );
 
   // ---- Colour ---------------------------------------------------------------------------------------------------
-  // Liveries: police (white with blue & light-blue side stripes, lettering on the front doors); Barcelona's taxi (black
-  // with its front & rear doors painted yellow)
+  // Liveries: police (white with blue & light-blue side stripes, lettering on the front doors). València's taxis are
+  // plain white (the paint colour), their lettering a decal on the front doors (controllers.js)
   const isPolice = (fixed ? float(0) : step(0.5, state.w)).mul(isSide).mul(isBody);
   const doorMid = (spec.doors[0] + spec.doors[1]) / 2;
   const along = smoothstep(spec.zRear + 0.22, spec.zRear + 0.3, p.z).mul(smoothstep(spec.zFront - 0.28, spec.zFront - 0.36, p.z));
@@ -1179,14 +1179,7 @@ function createLoftedCarMaterial(spec, fixedColorHex = null) {
     .mul(smoothstep(0.725, 0.73, p.y))
     .mul(smoothstep(0.81, 0.805, p.y))
     .mul(step(abs(p.z.sub(doorMid)), 0.22));
-  let painted = mix(mix(paint, color(0x1d3f8f), max(band, lettering).mul(isPolice)), color(0x6fa8dc), pin.mul(isPolice));
-  if (spec.sign) {
-    const doorPanels = step(spec.doors[2] + 0.02, p.z).mul(step(p.z, spec.doors[0] - 0.02))
-      .mul(smoothstep(0.36, 0.38, p.y)).mul(smoothstep(0.9, 0.88, p.y))
-      .mul(isSide)
-      .mul(isBody);
-    painted = mix(painted, color(0xffc21a), doorPanels);
-  }
+  const painted = mix(mix(paint, color(0x1d3f8f), max(band, lettering).mul(isPolice)), color(0x6fa8dc), pin.mul(isPolice));
 
   // Panel shading: soft occlusion low down & under the arch lips; unpainted cladding (SUVs); door shut lines &
   // handles; trunk / hood shut lines; black cowl panel under the windshield

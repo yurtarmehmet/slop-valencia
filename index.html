@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <title>Slop Barcelona</title>
+  <title>Slop València</title>
   <link rel="icon" href="data:," />
-  <meta name="description" content="Barcelona en 3D con three.js, WebGPURenderer y TSL: el Eixample de Cerdà, Ciutat Vella, el Poblenou y el puerto a escala real desde OpenStreetMap; recórrela a pie, en taxi, en bici o en helicóptero." />
+  <meta name="description" content="València en 3D con three.js, WebGPURenderer y TSL: Ciutat Vella, el Ensanche, el Jardí del Túria, la Ciutat de les Arts i les Ciències y la Malva-rosa a escala real desde OpenStreetMap; recórrela a pie, en taxi, en bici o en helicóptero." />
   <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
   <!-- three.js dev branch pinned to a commit (builds committed to mrdoob/three.js@dev, served by jsDelivr) -->
   <script type="importmap">
@@ -30,14 +30,42 @@
   <link rel="modulepreload" href="./js/pedestrians.js" />
   <link rel="modulepreload" href="./js/lighting.js" />
   <link rel="modulepreload" href="./js/city-grid.js" />
+  <link rel="modulepreload" href="./js/vlc-ground.js" />
+  <link rel="modulepreload" href="./js/ground-photo.js" />
   <link rel="modulepreload" href="./js/boroughs.js" />
+  <link rel="modulepreload" href="./js/vlc-buildings.js" />
+  <link rel="preload" href="./js/vlc-buildings.bin.gz" as="fetch" type="application/gzip" crossorigin />
+  <link rel="modulepreload" href="./js/vlc-shops.js" />
+  <link rel="modulepreload" href="./js/shop-signs-kinds.js" />
+  <link rel="modulepreload" href="./js/shop-signs.js" />
   <link rel="modulepreload" href="./js/buildings.js" />
-  <link rel="modulepreload" href="./js/fire-escapes.js" />
+  <link rel="modulepreload" href="./js/vlc-facade-rules.js" />
+  <link rel="modulepreload" href="./js/vlc-balconies.js" />
+  <link rel="modulepreload" href="./js/vlc-cables.js" />
+  <link rel="modulepreload" href="./js/vlc-fences.js" />
+  <link rel="modulepreload" href="./js/vlc-fence-mesh.js" />
+  <link rel="modulepreload" href="./js/vlc-landmark-heights.js" />
   <link rel="modulepreload" href="./js/landmarks.js" />
+  <link rel="modulepreload" href="./js/vlc-trees.js" />
+  <link rel="preload" href="./js/vlc-trees.bin.gz" as="fetch" type="application/gzip" crossorigin />
+  <link rel="modulepreload" href="./js/vlc-lamps.js" />
+  <link rel="modulepreload" href="./js/street-lamps-plan.js" />
+  <link rel="modulepreload" href="./js/street-lamps.js" />
   <link rel="modulepreload" href="./js/street-details.js" />
+  <link rel="modulepreload" href="./js/vlc-signs.js" />
+  <link rel="modulepreload" href="./js/vlc-furniture.js" />
+  <link rel="modulepreload" href="./js/vlc-plates-data.js" />
+  <link rel="modulepreload" href="./js/vlc-plates.js" />
   <link rel="modulepreload" href="./js/road-network.js" />
+  <link rel="modulepreload" href="./js/vlc-drains.js" />
+  <link rel="modulepreload" href="./js/vlc-ground-decals.js" />
+  <link rel="modulepreload" href="./js/vlc-markings-decode.js" />
+  <link rel="modulepreload" href="./js/vlc-markings.js" />
+  <link rel="modulepreload" href="./js/vlc-stone-lanes.js" />
   <link rel="modulepreload" href="./js/road-paint.js" />
   <link rel="modulepreload" href="./js/traffic.js" />
+  <link rel="modulepreload" href="./js/vlc-footfall.js" />
+  <link rel="modulepreload" href="./js/plaza-crowd.js" />
   <link rel="modulepreload" href="./js/pedestrian-system.js" />
   <link rel="modulepreload" href="./js/pedestrian-routes.js" />
   <link rel="modulepreload" href="./js/controllers.js" />
@@ -95,26 +123,27 @@
   <!-- Loading Screen -->
   <div id="loading-overlay" role="status" aria-live="polite">
     <div class="loader">
-      <span class="mta-bullet loader-bullet" aria-hidden="true">BCN</span>
-      <div class="loader-title">Slop Barcelona</div>
+      <span class="mta-bullet loader-bullet" aria-hidden="true">VLC</span>
+      <div class="loader-title">Slop València</div>
       <div class="loader-track is-indeterminate" aria-hidden="true"><span id="loading-progress" class="loader-fill"></span></div>
       <div id="loading-status">Iniciando WebGPURenderer y los shaders TSL…</div>
     </div>
   </div>
 
   <!-- 3D WebGPU Viewport Container -->
-  <main id="canvas-container" aria-label="Vista 3D interactiva de Slop Barcelona"></main>
+  <main id="canvas-container" aria-label="Vista 3D interactiva de Slop València"></main>
 
   <!-- Top-Left: Brand & Renderer Telemetry -->
   <header class="hud hud-top-left">
     <div class="panel brand">
-      <span class="mta-bullet" aria-hidden="true">BCN</span>
+      <span class="mta-bullet" aria-hidden="true">VLC</span>
       <div class="brand-titles">
         <div class="brand-heading">
-          <h1>Slop Barcelona</h1>
+          <h1>Slop València</h1>
           <a class="repo-link" href="https://github.com/mrdoob/slop-newyork/" target="_blank" rel="noopener noreferrer" aria-label="El proyecto original, Slop New York, en GitHub (se abre en una pestaña nueva)">GitHub <span aria-hidden="true">↗</span></a>
         </div>
         <div class="brand-subtitle">three.js · WebGPU · TSL · <span id="hud-fps" class="fps-ok">60</span> fps</div>
+        <div class="brand-credits">Datos: © colaboradores de OpenStreetMap (ODbL) · Edificios: D.G. del Catastro · LiDAR y ortofoto PNOA CC BY 4.0 scne.es · Arbolado: Ajuntament de València (CC BY 4.0)</div>
       </div>
     </div>
   </header>
@@ -140,7 +169,7 @@
       <button id="btn-teleport" class="tool-btn" type="button" popovertarget="teleport-popover" title="Teletransportar al jugador">
         <svg class="icon" aria-hidden="true"><use href="#i-pin"/></svg><span class="tool-label">Ir a</span><svg class="icon icon-sm" aria-hidden="true"><use href="#i-chevron-down"/></svg>
       </button>
-      <button id="btn-open-map" class="tool-btn" type="button" title="Plano de Barcelona [M]">
+      <button id="btn-open-map" class="tool-btn" type="button" title="Plano de València [M]">
         <svg class="icon" aria-hidden="true"><use href="#i-map"/></svg><span class="tool-label">Plano</span><kbd>M</kbd>
       </button>
       <span class="toolbar-divider" aria-hidden="true"></span>
@@ -156,22 +185,23 @@
   <!-- Teleport Destinations (native popover: light-dismiss & Esc) -->
   <div id="teleport-popover" class="popover" popover data-side="below" data-anchor="hud-toolbar" aria-label="Teletransportar al jugador">
     <div class="pop-title">Ir a</div>
-    <button id="tp-sagrada" class="pop-item tp-btn" data-teleport="sagrada" type="button"><span class="pop-name">Sagrada Família</span><span class="pop-sub">Carrer de Mallorca · L'Eixample</span></button>
-    <button id="tp-catalunya" class="pop-item tp-btn" data-teleport="catalunya" type="button"><span class="pop-name">Plaça de Catalunya</span><span class="pop-sub">El centre de la ciutat</span></button>
-    <button id="tp-batllo" class="pop-item tp-btn" data-teleport="batllo" type="button"><span class="pop-name">Casa Batlló</span><span class="pop-sub">Passeig de Gràcia</span></button>
-    <button id="tp-pedrera" class="pop-item tp-btn" data-teleport="pedrera" type="button"><span class="pop-name">La Pedrera</span><span class="pop-sub">Passeig de Gràcia · Provença</span></button>
-    <button id="tp-rambla" class="pop-item tp-btn" data-teleport="rambla" type="button"><span class="pop-name">La Rambla</span><span class="pop-sub">El Liceu · Ciutat Vella</span></button>
-    <button id="tp-arc" class="pop-item tp-btn" data-teleport="arc" type="button"><span class="pop-name">Arc de Triomf</span><span class="pop-sub">Passeig de Lluís Companys</span></button>
-    <button id="tp-glories" class="pop-item tp-btn" data-teleport="glories" type="button"><span class="pop-name">Torre Glòries</span><span class="pop-sub">Plaça de les Glòries</span></button>
-    <button id="tp-colom" class="pop-item tp-btn" data-teleport="colom" type="button"><span class="pop-name">Monument a Colom</span><span class="pop-sub">Port Vell</span></button>
-    <button id="tp-barceloneta" class="pop-item tp-btn" data-teleport="barceloneta" type="button"><span class="pop-name">La Barceloneta</span><span class="pop-sub">La platja</span></button>
-    <button id="tp-vela" class="pop-item tp-btn" data-teleport="vela" type="button"><span class="pop-name">Hotel W</span><span class="pop-sub">La Vela · Port</span></button>
+    <button id="tp-ajuntament" class="pop-item tp-btn" data-teleport="ajuntament" type="button"><span class="pop-name">Plaça de l'Ajuntament</span><span class="pop-sub">El centre de la ciutat</span></button>
+    <button id="tp-micalet" class="pop-item tp-btn" data-teleport="micalet" type="button"><span class="pop-name">Catedral &amp; el Micalet</span><span class="pop-sub">Plaça de la Reina · La Seu</span></button>
+    <button id="tp-serrans" class="pop-item tp-btn" data-teleport="serrans" type="button"><span class="pop-name">Torres dels Serrans</span><span class="pop-sub">El Carme · el Túria</span></button>
+    <button id="tp-quart" class="pop-item tp-btn" data-teleport="quart" type="button"><span class="pop-name">Torres de Quart</span><span class="pop-sub">El Carme</span></button>
+    <button id="tp-mercat" class="pop-item tp-btn" data-teleport="mercat" type="button"><span class="pop-name">Mercat Central</span><span class="pop-sub">La Llotja · El Mercat</span></button>
+    <button id="tp-nord" class="pop-item tp-btn" data-teleport="nord" type="button"><span class="pop-name">Estació del Nord</span><span class="pop-sub">Plaça de Bous · Xàtiva</span></button>
+    <button id="tp-russafa" class="pop-item tp-btn" data-teleport="russafa" type="button"><span class="pop-name">Mercat de Russafa</span><span class="pop-sub">Plaça del Baró de Cortes · Russafa</span></button>
+    <button id="tp-cac" class="pop-item tp-btn" data-teleport="cac" type="button"><span class="pop-name">Ciutat de les Arts i les Ciències</span><span class="pop-sub">L'Hemisfèric · Calatrava</span></button>
+    <button id="tp-mestalla" class="pop-item tp-btn" data-teleport="mestalla" type="button"><span class="pop-name">Mestalla</span><span class="pop-sub">Avinguda de Suècia</span></button>
+    <button id="tp-malvarrosa" class="pop-item tp-btn" data-teleport="malvarrosa" type="button"><span class="pop-name">La Malva-rosa</span><span class="pop-sub">La platja</span></button>
+    <button id="tp-veles" class="pop-item tp-btn" data-teleport="veles" type="button"><span class="pop-name">Veles e Vents</span><span class="pop-sub">La Marina</span></button>
   </div>
 
   <!-- Bottom-Left: Street-Name Signs & Live GPS Radar Minimap -->
   <div class="hud hud-bottom-left">
     <div id="hud-location" class="location" aria-live="off"></div>
-    <aside id="minimap-card" class="panel radar" aria-label="Minimapa de calles" title="Abrir el plano de Barcelona [M]">
+    <aside id="minimap-card" class="panel radar" aria-label="Minimapa de calles" title="Abrir el plano de València [M]">
       <canvas id="minimap-canvas"></canvas>
       <span class="radar-north" aria-hidden="true">N</span>
       <kbd class="radar-key">M</kbd>
@@ -186,7 +216,7 @@
       <button id="mode-person" class="mode-btn" data-mode="person" type="button" title="A pie [1]">
         <svg class="icon" aria-hidden="true"><use href="#i-walk"/></svg><span class="mode-label">A pie</span><kbd>1</kbd>
       </button>
-      <button id="mode-car" class="mode-btn active" data-mode="car" type="button" title="Taxi de Barcelona [2]">
+      <button id="mode-car" class="mode-btn active" data-mode="car" type="button" title="Taxi de València [2]">
         <svg class="icon" aria-hidden="true"><use href="#i-car"/></svg><span class="mode-label">Taxi</span><kbd>2</kbd>
       </button>
       <button id="mode-cyclist" class="mode-btn" data-mode="cyclist" type="button" title="Bicicleta [3]">
@@ -206,7 +236,7 @@
     <section id="hud-cluster" class="panel cluster" aria-label="Velocidad y cámara">
       <div class="gauge">
         <div class="gauge-top">
-          <span id="hud-active-mode" class="gauge-label">Taxi de Barcelona</span>
+          <span id="hud-active-mode" class="gauge-label">Taxi de València</span>
           <span class="gauge-alt"><span class="gauge-alt-label">Alt</span> <span id="hud-altitude">0</span> m</span>
         </div>
         <div class="gauge-speed"><span id="hud-speed">0</span><span class="gauge-unit">km/h</span></div>
@@ -246,40 +276,40 @@
     </div>
   </section>
 
-  <!-- All Cameras: 3 Follow Cameras + Barcelona Vantage Cameras + Auto-Director Drone -->
+  <!-- All Cameras: 3 Follow Cameras + València Vantage Cameras + Auto-Director Drone -->
   <div id="camera-popover" class="popover" popover data-side="above" data-anchor="hud-cluster" data-align="hud-cluster" aria-label="Cámaras">
     <div class="pop-title">Seguimiento</div>
     <button id="cam-chase" class="pop-item cam-btn active" data-camera="chase" type="button"><span class="pop-name">Persecución</span><kbd>6</kbd></button>
     <button id="cam-action" class="pop-item cam-btn" data-camera="action" type="button"><span class="pop-name">Contrapicado</span><kbd>7</kbd></button>
     <button id="cam-pov" class="pop-item cam-btn" data-camera="pov" type="button"><span class="pop-name">Primera persona / cabina</span><kbd>8</kbd></button>
     <div class="pop-title">Panorámicas</div>
-    <button id="cam-sagrada" class="pop-item cam-btn" data-camera="sagrada" type="button"><span class="pop-name">Sagrada Família</span><kbd>9</kbd></button>
-    <button id="cam-gracia" class="pop-item cam-btn" data-camera="gracia" type="button"><span class="pop-name">Passeig de Gràcia</span><kbd>0</kbd></button>
-    <button id="cam-rambla" class="pop-item cam-btn" data-camera="rambla" type="button"><span class="pop-name">La Rambla</span></button>
-    <button id="cam-catalunya" class="pop-item cam-btn" data-camera="catalunya" type="button"><span class="pop-name">Plaça de Catalunya</span></button>
-    <button id="cam-glories" class="pop-item cam-btn" data-camera="glories" type="button"><span class="pop-name">Torre Glòries &amp; Diagonal</span></button>
-    <button id="cam-port" class="pop-item cam-btn" data-camera="port" type="button"><span class="pop-name">Port Vell &amp; Colom</span></button>
-    <button id="cam-beach" class="pop-item cam-btn" data-camera="beach" type="button"><span class="pop-name">Platja de la Barceloneta</span></button>
+    <button id="cam-micalet" class="pop-item cam-btn" data-camera="micalet" type="button"><span class="pop-name">Catedral &amp; el Micalet</span><kbd>9</kbd></button>
+    <button id="cam-cac" class="pop-item cam-btn" data-camera="cac" type="button"><span class="pop-name">Ciutat de les Arts i les Ciències</span><kbd>0</kbd></button>
+    <button id="cam-ajuntament" class="pop-item cam-btn" data-camera="ajuntament" type="button"><span class="pop-name">Plaça de l'Ajuntament</span></button>
+    <button id="cam-serrans" class="pop-item cam-btn" data-camera="serrans" type="button"><span class="pop-name">Torres dels Serrans</span></button>
+    <button id="cam-turia" class="pop-item cam-btn" data-camera="turia" type="button"><span class="pop-name">Jardí del Túria</span></button>
+    <button id="cam-port" class="pop-item cam-btn" data-camera="port" type="button"><span class="pop-name">La Marina &amp; Veles e Vents</span></button>
+    <button id="cam-beach" class="pop-item cam-btn" data-camera="beach" type="button"><span class="pop-name">Platja de la Malva-rosa</span></button>
     <button id="cam-drone" class="pop-item cam-btn" data-camera="drone" type="button"><span class="pop-name">Dron automático</span></button>
   </div>
 
-  <!-- Full-Screen Interactive Barcelona Street Map ([M]) -->
-  <section id="fullmap-modal" class="fullmap-modal hidden" role="dialog" aria-modal="true" aria-label="Plano interactivo de Barcelona">
+  <!-- Full-Screen Interactive València Street Map ([M]) -->
+  <section id="fullmap-modal" class="fullmap-modal hidden" role="dialog" aria-modal="true" aria-label="Plano interactivo de València">
     <div id="fullmap-canvas-wrap" class="fullmap-canvas-wrap">
       <canvas id="fullmap-canvas"></canvas>
     </div>
 
     <div class="fullmap-header">
       <div class="panel fullmap-title">
-        <span class="mta-bullet" aria-hidden="true">BCN</span>
+        <span class="mta-bullet" aria-hidden="true">VLC</span>
         <div>
-          <h2>Plano de Barcelona</h2>
-          <p id="fullmap-player-info" class="fullmap-subtitle">Estás en el Passeig de Gràcia</p>
+          <h2>Plano de València</h2>
+          <p id="fullmap-player-info" class="fullmap-subtitle">Estás en la Plaça de l'Ajuntament</p>
         </div>
       </div>
       <label class="panel fullmap-search-wrap">
         <svg class="icon" aria-hidden="true"><use href="#i-search"/></svg>
-        <input id="fullmap-search" class="fullmap-search" type="text" placeholder="Busca calles y lugares — Aragó, Rambla, Sagrada Família…" aria-label="Buscar calle o lugar" autocomplete="off" spellcheck="false" />
+        <input id="fullmap-search" class="fullmap-search" type="text" placeholder="Busca calles y lugares — Colón, Russafa, Micalet…" aria-label="Buscar calle o lugar" autocomplete="off" spellcheck="false" />
       </label>
       <button id="close-fullmap-btn" class="panel tool-btn fullmap-close" type="button" title="Cerrar el plano [M / Esc]">
         <svg class="icon" aria-hidden="true"><use href="#i-close"/></svg><span class="tool-label">Cerrar</span><kbd>Esc</kbd>
@@ -287,7 +317,7 @@
     </div>
 
     <div class="map-controls">
-      <div class="panel map-compass" title="Norte geográfico · la cuadrícula del Eixample está girada 45° respecto a él">
+      <div class="panel map-compass" title="Norte geográfico · la cuadrícula del Ensanche está girada 29° respecto a él">
         <svg viewBox="0 0 44 44" aria-hidden="true">
           <g id="map-compass-needle">
             <path d="M22 9.5 25.6 22h-7.2z" fill="#f05a4f"/>

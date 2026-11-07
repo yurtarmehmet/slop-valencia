@@ -22,12 +22,15 @@ import { SunLight } from 'three/addons/lights/SunLight.js';
 import { SunLightNode } from 'three/addons/lights/SunLightNode.js';
 import { cityUniforms } from './tsl-materials.js';
 
-// Atmospheric sky, environment lighting, sunlight and time-of-day presets.
+// Atmospheric sky, environment lighting, sunlight and time-of-day presets. The sun stands where it really does over
+// València (39.47° N) at each preset's moment, turned into the world frame (grid north 28.6° west of true north):
+// golden = an equinox afternoon at 16:00 solar time (elevation 22.7°, azimuth 250°, the sun over the land to the west),
+// midday = a June morning at 10:30 (65°, 123°, from the sea side), twilight = an equinox sunset (4.6°, 266°).
 
 const TIME_PRESETS = {
   golden: {
     id: 'golden',
-    sunDir: new THREE.Vector3(-0.44, 0.58, -0.68).normalize(),
+    sunDir: new THREE.Vector3(-0.9125, 0.386, -0.1358).normalize(),
     sunColor: 0xffca92,
     sunIntensity: 5.8,
     hemiSky: 0x9abbe6,
@@ -52,16 +55,16 @@ const TIME_PRESETS = {
   },
   midday: {
     id: 'midday',
-    sunDir: new THREE.Vector3(-0.34, 0.82, -0.46).normalize(),
+    sunDir: new THREE.Vector3(0.1972, 0.9072, 0.3716).normalize(),
     sunColor: 0xfff5e8,
     sunIntensity: 6.6,
     hemiSky: 0xaad2ff,
     hemiGround: 0xb89678, // Warm sunlit masonry & pavement bounce
     hemiIntensity: 1.58,
     skyTop: 0x225ea8,
-    skyHorizon: 0xc8dff5,
-    fogColor: 0xc6dcf2,
-    fogDensity: 0.00018,
+    skyHorizon: 0xd3e2ef, // a pale sea haze along the horizon
+    fogColor: 0xd2dde6,
+    fogDensity: 0.0002,
     interiorGlow: 0.24,
     roadWetness: 0.08,
     envIntensity: 0.58,
@@ -77,7 +80,7 @@ const TIME_PRESETS = {
   },
   twilight: {
     id: 'twilight',
-    sunDir: new THREE.Vector3(-0.52, 0.36, -0.77).normalize(),
+    sunDir: new THREE.Vector3(-0.9049, 0.0807, -0.418).normalize(),
     sunColor: 0xff9466,
     sunIntensity: 3.1,
     hemiSky: 0x4c6ca8,

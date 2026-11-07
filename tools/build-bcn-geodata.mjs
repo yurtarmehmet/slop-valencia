@@ -21,7 +21,7 @@ function mergeRoads() {
   for (const w of ways) {
     if (!w.t.name || !w.pts.some(inDetail)) continue;
     const dir = w.t.oneway === 'yes' || w.t.junction === 'roundabout' ? 1 : w.t.oneway === '-1' ? -1 : 0;
-    const k = `${w.t.name}|${Math.round(w.w)}|${dir}|${w.lanes || 0}|${w.t.highway === 'pedestrian' ? 1 : 0}`;
+    const k = `${w.t.name}|${Math.round(w.ruleWidth ?? w.w)}|${dir}|${w.lanes || 0}|${w.t.highway === 'pedestrian' ? 1 : 0}`;
     if (!byKey.has(k)) byKey.set(k, []);
     byKey.get(k).push(w.pts);
   }
@@ -85,6 +85,8 @@ for (const e of load('bcn_landmarks.json').elements) {
   const r = e.ring.map(([lon, lat]) => toWorld(lon, lat));
   const b = bbox(r);
   const area = Math.abs(ringArea(r));
+  // (a neighbourhood or district sharing a landmark's name, like the barri of Mestalla round its stadium, is no landmark)
+  if (area > 150000) continue;
   const prev = landmarks[e.name];
   if (prev && prev.area >= area) continue;
   landmarks[e.name] = { x: q((b.x0 + b.x1) / 2), z: q((b.z0 + b.z1) / 2), w: q(b.x1 - b.x0), d: q(b.z1 - b.z0), h: e.height || (e.levels ? q(e.levels * 3.6) : null), area: Math.round(area), ring: flat(rdpRing(r.slice(0, -1), 0.4)) };
@@ -93,17 +95,18 @@ log(`${Object.keys(landmarks).length} landmark footprints`);
 
 // --- Points of note at their real coordinates ------------------------------------------------------------------------
 const POINTS = {
-  placaCatalunya: [41.38703, 2.17005], sagradaFamilia: [41.40363, 2.17436], casaBatllo: [41.39165, 2.16492],
-  pedrera: [41.39540, 2.16190], arcTriomf: [41.39104, 2.18064], ciutadella: [41.38810, 2.18750], torreGlories: [41.40358, 2.18950],
-  barceloneta: [41.37840, 2.19250], colom: [41.37581, 2.17774], hotelW: [41.36860, 2.19010], catedral: [41.38393, 2.17619],
-  liceu: [41.38050, 2.17360], boqueria: [41.38200, 2.17170], santaMariaMar: [41.38375, 2.18190], palauMusica: [41.38753, 2.17530],
-  hotelArts: [41.38630, 2.19660], placaEspanya: [41.37510, 2.14900], mnac: [41.36850, 2.15340], placaReial: [41.38010, 2.17530],
-  universitat: [41.38630, 2.16410], santAntoni: [41.37870, 2.16190], glories: [41.40360, 2.18750], diagonalPg: [41.39550, 2.16120],
-  campNou: [41.38090, 2.12280], tibidabo: [41.42190, 2.11890], montjuicCastle: [41.36330, 2.16610], torreAgbarTop: [41.40358, 2.18950]
+  ajuntament: [39.46975, -0.37639], catedral: [39.47559, -0.37529], micalet: [39.47530, -0.37570], placaReina: [39.47460, -0.37560],
+  placaVirgen: [39.47630, -0.37530], serrans: [39.47920, -0.37630], quart: [39.47560, -0.38410], llotja: [39.47450, -0.37880],
+  mercatCentral: [39.47340, -0.37910], estacioNord: [39.46641, -0.37744], placaBous: [39.46670, -0.37670], mercatColon: [39.46890, -0.36880],
+  portaMar: [39.47200, -0.36850], russafa: [39.46230, -0.37200], sorolla: [39.46000, -0.38130], palauMusica: [39.46630, -0.36090],
+  gulliver: [39.46260, -0.35940], hemisferic: [39.45700, -0.35430], palauArts: [39.45810, -0.35594], museuCiencies: [39.45566, -0.35183],
+  oceanografic: [39.45260, -0.34680], torreFrancia: [39.45980, -0.35260], mestalla: [39.47440, -0.35820], benimaclet: [39.48700, -0.35900],
+  cabanyal: [39.46750, -0.33360], malvarrosa: [39.47980, -0.32401], velesVents: [39.46110, -0.32470],
+  mercatRussafa: [39.46202, -0.37143], santValer: [39.46270, -0.37220]
 };
 const points = Object.fromEntries(Object.entries(POINTS).map(([k, [lat, lon]]) => [k, toWorld(lon, lat).map(q)]));
 
-// --- Street furniture from OpenStreetMap: signalised junctions, metro entrances, Bicing docks & fountains -----------
+// --- Street furniture from OpenStreetMap: signalised junctions, metro entrances, Valenbisi docks & fountains -----------
 const roadGraph = buildRoadGraph();
 const furniture = { signals: [], metro: [], bicing: [], fountains: [] };
 {
@@ -140,20 +143,20 @@ const furniture = { signals: [], metro: [], bicing: [], fountains: [] };
     else if (e.kind === 'bicing') furniture.bicing.push(q(e.p[0]), q(e.p[1]));
     else if (e.kind === 'fountain') furniture.fountains.push(q(e.p[0]), q(e.p[1]));
   }
-  log(`${furniture.signals.length / 2} signalised junctions, ${furniture.metro.length} metro entrances, ${furniture.bicing.length / 2} Bicing docks, ${furniture.fountains.length / 2} fountains`);
+  log(`${furniture.signals.length / 2} signalised junctions, ${furniture.metro.length} metro entrances, ${furniture.bicing.length / 2} Valenbisi docks, ${furniture.fountains.length / 2} fountains`);
 }
 
 // --- Assemble -----------------------------------------------------------------------------------------------------------
 const GEO = {
   version: 1,
-  frame: { bearingDeg: Math.round(((geo.THETA * 180) / Math.PI) * 1000) / 1000, origin: 'Plaça de Catalunya', lat0: geo.LAT0, lon0: geo.LON0, kx: q(geo.KX), ky: q(geo.KY), units: 'm', strip: STRIP, sidewalk: 5, detail: D },
+  frame: { bearingDeg: Math.round(((geo.THETA * 180) / Math.PI) * 1000) / 1000, origin: "Plaça de l'Ajuntament", lat0: geo.LAT0, lon0: geo.LON0, kx: q(geo.KX), ky: q(geo.KY), units: 'm', strip: STRIP, sidewalk: 5, detail: D },
   land: flat(geo.land),
   metroLand: flat(geo.metroLand),
   roads,
   // Street centreline graph (bcn-roadgraph.mjs): nodes [x, z, ...], links [node a, node b, name index, curb-to-curb
   // width, travel lanes, direction (1: a -> b, -1: b -> a, 0: both), inner shape points [x, z, ...]]
   roadGraph,
-  // Signalised junctions [x, z, ...], metro entrances [[x, z, name], ...], Bicing docks & drinking fountains [x, z, ...]
+  // Signalised junctions [x, z, ...], metro entrances [[x, z, name], ...], Valenbisi docks & drinking fountains [x, z, ...]
   furniture,
   // [outline, lot rects, park share, area name, rectangular, frontage frames [[θ, px, pz, lot rects], ...] | 0,
   //  beach share, square share, OSM storeys (area-weighted median), OSM storeys (95th percentile),
@@ -161,7 +164,7 @@ const GEO = {
   blocks: blocks.map((b) => [flat(b.poly), b.rects.map((r) => r.map(q)), b.park, b.name, b.rect ? 1 : 0,
     b.frames ? b.frames.map(([th, px, pz, rs]) => [Math.round(th * 1e4) / 1e4, q(px), q(pz), rs.map((r) => r.map(q))]) : 0,
     b.beach, b.square, b.storeys[0], b.storeys[1], b.illa ? b.illa.map(q) : 0]),
-  // Cerdà's chamfered crossings (traffic signals): [x, z, curb chamfer |dx| + |dz|, ...]
+  // The Ensanche's chamfered crossings (traffic signals): [x, z, curb chamfer |dx| + |dz|, ...]
   crossings: chamfers.flatMap((c) => [q(c.x), q(c.z), q(c.curb)]),
   parks,
   water,
@@ -172,8 +175,8 @@ const GEO = {
 
 const json = JSON.stringify(GEO);
 const header = `// js/bcn-geodata.js — GENERATED by tools/build-bcn-geodata.mjs, do not edit by hand.
-// Real Barcelona geography in the simulation's world frame: 1 unit = 1 m, x = Eixample-grid east (toward the Besòs),
-// z = grid south (toward the sea), origin at the centre of Plaça de Catalunya, axes turned ${GEO.frame.bearingDeg}° from true north.
+// Real València geography in the simulation's world frame: 1 unit = 1 m, x = Ensanche-grid east (roughly toward the sea),
+// z = grid south (toward Russafa), origin at the centre of Plaça de l'Ajuntament, axes turned ${GEO.frame.bearingDeg}° from true north.
 // Polygons & polylines are flat [x0, z0, x1, z1, ...] arrays.
 // Source: © OpenStreetMap contributors (ODbL 1.0).
 `;

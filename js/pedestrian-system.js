@@ -1,13 +1,19 @@
 import { blockAt } from './city-config.js';
 import { createPedestrianRoutes } from './pedestrian-routes.js';
 import { PersonCrowd, PersonRig, PEDESTRIAN_DIVE_DURATION } from './pedestrians.js';
+import { footfallAt, footfallVersion } from './vlc-footfall.js';
 
 // Local pedestrian population: connected walks, curb queues, conversations and player avoidance.
 // Traffic supplies crossing permissions and view checks; this system owns the crowd and its animation.
-const NUM_PEDS = 340;
-const PED_RADIUS = 320;
-const NEAR_RADIUS = 350;
+// How many walk where follows the footfall map (vlc-footfall.js: residents per block, workplaces, shops and bars,
+// by time of day): the people around the focus are as many as its streets carry, up to NUM_PEDS, and each one starts
+// on a stretch of sidewalk chosen in proportion to that stretch's footfall. They live within PED_RADIUS of the focus,
+// where they can be seen; beyond it they are recycled.
+const NUM_PEDS = 520;
+const PED_RADIUS = 200;
+const NEAR_RADIUS = 210;
 const PED_SPAWN_DISTANCE = 150;
+const FOOTFALL_STEP = 20; // m of sidewalk per spawn weight
 const PED_AVOID_INTERVAL = 0.12;
 const clamp = (x, lo, hi) => Math.max(lo, Math.min(hi, x));
 
@@ -89,11 +95,59 @@ function createPedestrianSystem(network, { player, nearEdges, nearSignals, mayCr
   const pedRoutes = createPedestrianRoutes(network, blockAt);
   const track = { ax: 0, az: 0, ux: 0, uz: 1, len: 1, node: null, side: 0, line: 0, route: null };
 
-  function sidewalkTrack(e) {
-    const choices = pedRoutes.along(e);
-    if (!choices.length) return false;
-    const route = choices[Math.floor(Math.random() * choices.length)];
-    Object.assign(track, route, { route });
+  // Sidewalk stretches around the focus weighted by their footfall (people expected on each), refreshed as the focus
+  // moves or the time of day changes. Two directed edges along one street share their sidewalks: counted once.
+  const spawnTracks = [], spawnT0 = [], spawnT1 = [], spawnCum = [];
+  let weightX = Infinity, weightZ = Infinity, weightVersion = -1, weightEdges = -1, weightEdge0 = null;
+  let activePeds = NUM_PEDS, expectedPeds = 0;
+  const seenTracks = new Set();
+  function refreshFootfall() {
+    if (Math.hypot(focusX - weightX, focusZ - weightZ) < 20 && weightVersion === footfallVersion()
+      && weightEdges === nearEdges.length && weightEdge0 === nearEdges[0]) return;
+    weightX = focusX; weightZ = focusZ; weightVersion = footfallVersion();
+    weightEdges = nearEdges.length; weightEdge0 = nearEdges[0];
+    spawnTracks.length = spawnT0.length = spawnT1.length = spawnCum.length = 0;
+    seenTracks.clear();
+    let total = 0;
+    for (const e of nearEdges) {
+      const s = clamp((focusX - e.sx) * e.dx + (focusZ - e.sz) * e.dz, 0, e.len);
+      if (Math.hypot(e.sx + e.dx * s - focusX, e.sz + e.dz * s - focusZ) > PED_RADIUS) continue;
+      const tracks = pedRoutes.along(e);
+      for (const tr of tracks) {
+        const ex = tr.ax + tr.ux * tr.len, ez = tr.az + tr.uz * tr.len;
+        const k1 = `${Math.round(tr.ax * 2)},${Math.round(tr.az * 2)},${Math.round(ex * 2)},${Math.round(ez * 2)}`;
+        const k2 = `${Math.round(ex * 2)},${Math.round(ez * 2)},${Math.round(tr.ax * 2)},${Math.round(tr.az * 2)}`;
+        if (seenTracks.has(k1) || seenTracks.has(k2)) continue;
+        seenTracks.add(k1);
+        // the street's footfall is for both sidewalks: share it among the walking lines found along this edge
+        const share = 1 / tracks.length;
+        for (let t0 = 0; t0 < tr.len; t0 += FOOTFALL_STEP) {
+          const t1 = Math.min(tr.len, t0 + FOOTFALL_STEP), tm = (t0 + t1) * 0.5;
+          const x = tr.ax + tr.ux * tm, z = tr.az + tr.uz * tm;
+          if (Math.hypot(x - focusX, z - focusZ) > PED_RADIUS) continue;
+          const w = footfallAt(x, z) * (t1 - t0) * share;
+          if (w <= 0) continue;
+          total += w;
+          spawnTracks.push(tr); spawnT0.push(t0); spawnT1.push(t1); spawnCum.push(total);
+        }
+      }
+    }
+    expectedPeds = total;
+    activePeds = Math.min(NUM_PEDS, Math.round(total));
+  }
+
+  // A stretch of sidewalk by footfall: sets `track`, with the stretch [t0, t1] along it
+  function sidewalkTrack() {
+    const n = spawnCum.length;
+    if (!n) return false;
+    const r = Math.random() * spawnCum[n - 1];
+    let lo = 0, hi = n - 1;
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1;
+      if (spawnCum[mid] < r) lo = mid + 1; else hi = mid;
+    }
+    const route = spawnTracks[lo];
+    Object.assign(track, route, { route, t0: spawnT0[lo], t1: spawnT1[lo] });
     return true;
   }
 
@@ -126,14 +180,15 @@ function createPedestrianSystem(network, { player, nearEdges, nearSignals, mayCr
   function spawnPed(p, rMin, rMax, protectView) {
     for (let attempt = 0; attempt < 10; attempt++) {
       const crosswalk = p.crossesStreets && nearSignals.length > 0 && attempt < 5;
-      const ok = crosswalk
-        ? crosswalkTrack(nearSignals[Math.floor(Math.random() * nearSignals.length)])
-        : nearEdges.length > 0 && sidewalkTrack(nearEdges[Math.floor(Math.random() * nearEdges.length)]);
-      if (!ok) continue;
-      const along = (focusX - track.ax) * track.ux + (focusZ - track.az) * track.uz;
-      const minT = Math.max(0, along - rMax), maxT = Math.min(track.len, along + rMax);
-      if (minT > maxT) continue;
-      const t = crosswalk ? (Math.random() < 0.5 ? Math.random() * KERB : track.len - Math.random() * KERB) : minT + Math.random() * (maxT - minT);
+      let t;
+      if (crosswalk) {
+        if (!crosswalkTrack(nearSignals[Math.floor(Math.random() * nearSignals.length)])) continue;
+        t = Math.random() < 0.5 ? Math.random() * KERB : track.len - Math.random() * KERB;
+      } else {
+        if (!sidewalkTrack()) continue;
+        const t0 = track.t0 ?? 0, t1 = track.t1 ?? track.len;
+        t = t0 + Math.random() * (t1 - t0);
+      }
       const x = track.ax + track.ux * t;
       const z = track.az + track.uz * t;
       const d = Math.hypot(x - focusX, z - focusZ);
@@ -358,7 +413,13 @@ function createPedestrianSystem(network, { player, nearEdges, nearSignals, mayCr
     if (p.pause > 0) p.pause = Math.max(0, p.pause - dt);
     const ahead = p.dir > 0 ? p.len - p.t : p.t;
     if (clock >= p.goalTime || Math.hypot(p.x - p.goalX, p.z - p.goalZ) < 25) {
-      const destination = nearEdges[Math.floor(Math.random() * nearEdges.length)];
+      // head for the busier of a few streets around: people drift to where the shops and squares are
+      let destination = null, best = -1;
+      for (let k = 0; k < 3 && nearEdges.length; k++) {
+        const e = nearEdges[Math.floor(Math.random() * nearEdges.length)];
+        const f = footfallAt(e.sx + e.dx * e.len * 0.5, e.sz + e.dz * e.len * 0.5) * (0.5 + Math.random());
+        if (f > best) { best = f; destination = e; }
+      }
       p.goalX = destination ? destination.sx + destination.dx * destination.len * 0.5 : p.x;
       p.goalZ = destination ? destination.sz + destination.dz * destination.len * 0.5 : p.z;
       p.goalTime = clock + 120 + Math.random() * 180;
@@ -549,14 +610,24 @@ function createPedestrianSystem(network, { player, nearEdges, nearSignals, mayCr
 
     for (const n of walkedNodes) n.walkers.length = 0;
     walkedNodes.length = 0;
+    refreshFootfall();
     let pedBudget = jump ? NUM_PEDS : 6;
     for (let scanned = 0; scanned < NUM_PEDS && pedBudget > 0; scanned++) {
+      const index = pedCursor;
       const p = peds[pedCursor];
       pedCursor = (pedCursor + 1) % NUM_PEDS;
+      if (index >= activePeds) {
+        // more people than these streets carry now: the spare ones leave where nobody sees them go
+        if (p.placed && (jump || !nearView(p.x, p.z, 2, PED_SPAWN_DISTANCE))) {
+          if (p.conversation) endConversation(p.conversation);
+          p.placed = false;
+        }
+        continue;
+      }
       const d = p.placed ? Math.hypot(p.x - focusX, p.z - focusZ) : Infinity;
       if (d <= (jump ? NEAR_RADIUS : PED_RADIUS)) continue;
       pedBudget--;
-      spawnPed(p, jump ? 0 : 60, jump ? NEAR_RADIUS : 280, !jump);
+      spawnPed(p, jump ? 0 : 60, jump ? NEAR_RADIUS : PED_RADIUS - 5, !jump);
     }
     for (const p of peds) if (p.placed) avoidPlayer(p);
     meet(dt);
@@ -571,7 +642,8 @@ function createPedestrianSystem(network, { player, nearEdges, nearSignals, mayCr
     pedCrowd.end();
   }
 
-  return { peds, meshes: pedCrowd.meshes, update };
+  const footfall = () => ({ expected: expectedPeds, active: activePeds, placed: peds.filter((p) => p.placed).length });
+  return { peds, meshes: pedCrowd.meshes, update, footfall };
 }
 
 export { createPedestrianSystem };

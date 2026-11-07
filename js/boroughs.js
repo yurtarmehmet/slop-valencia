@@ -27,6 +27,7 @@ import {
 import { cityUniforms, filteredPulse } from './tsl-materials.js';
 import { METRO_LAND, ISLAND_BOUNDS, GEO_FRAME_DETAIL, onLand, lonLatToWorld } from './city-config.js';
 import { METRO_BUILDINGS } from './bcn-metro.js';
+import { groundPhotoAt } from './ground-photo.js';
 
 // The metropolitan area around the detailed city: the land out to the fogged horizon with the Collserola range & the
 // hills of Gràcia and Horta rising behind the city, and every building OpenStreetMap maps there as an instanced box
@@ -52,20 +53,9 @@ const srgb = (r, g, b) => vec3(toLinear(r), toLinear(g), toLinear(b));
 //    and the hills between (Putxet, Tres Creus, el Carmel, la Rovira, la Peira), real summits & heights. The detailed
 //    city stays flat at y = 0 (the land eases up from its edges).
 // =====================================================================================================================
-const HILLS = [
-  // [lon, lat, height (m), radius (m)]
-  [2.1395, 41.4078, 150, 320], // el Putxet
-  [2.1515, 41.4147, 160, 330], // Turó de les Tres Creus (Park Güell)
-  [2.1576, 41.4185, 240, 360], // Turó del Carmel
-  [2.1620, 41.4194, 235, 300], // Turó de la Rovira
-  [2.1700, 41.4320, 110, 330], // Turó de la Peira
-  [2.1265, 41.4130, 175, 360] // Sant Gervasi: Turó de Monterols & Mont d'Orsà's foothills
-].map(([lon, lat, h, r]) => ({ ...lonLatToWorld(lon, lat), h, r }));
-const RIDGE = [
-  // Collserola's crest, south-west to north-east: [lon, lat, height (m)]
-  [2.0700, 41.3900, 260], [2.0968, 41.3996, 399], [2.1100, 41.4140, 430], [2.1189, 41.4219, 512], [2.1330, 41.4330, 440],
-  [2.1450, 41.4440, 400], [2.1700, 41.4600, 360], [2.2000, 41.4800, 300]
-].map(([lon, lat, h]) => ({ ...lonLatToWorld(lon, lat), h }));
+// València sits on the flat Horta plain: no hills or ridges (the arrays stay for the shared terrain code)
+const HILLS = [];
+const RIDGE = [];
 const RIDGE_HALF = 1400; // the range's flanks
 const D = GEO_FRAME_DETAIL;
 
@@ -201,7 +191,10 @@ function createLandMaterial() {
   const city = mix(roofs, srgb(0.32, 0.32, 0.33), streets.mul(0.8));
   const forest = mix(srgb(0.19, 0.26, 0.14), srgb(0.27, 0.32, 0.18), n2);
   const scrub = mix(srgb(0.45, 0.42, 0.33), srgb(0.36, 0.35, 0.26), n1);
-  mat.colorNode = mix(city, mix(forest, scrub, smoothstep(0.35, 0.6, slope)), wood);
+  const procedural = mix(city, mix(forest, scrub, smoothstep(0.35, 0.6, slope)), wood);
+  // the PNOA orthophoto where it reaches (ground-photo.js), fading to the procedural ground at its edge
+  const photo = groundPhotoAt(p);
+  mat.colorNode = mix(procedural, photo.color, photo.inside);
   const lamps = streets.mul(float(1.0).sub(wood)).mul(step(0.55, valueNoise(p.mul(0.09))));
   mat.emissiveNode = srgb(1.0, 0.72, 0.42).mul(lamps.mul(nightFactorNode()).mul(0.5));
   return mat;

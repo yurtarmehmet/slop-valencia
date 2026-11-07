@@ -1,0 +1,50 @@
+{
+ "aparcaments-no-regulats-aparcamientos-no-regulados": {
+  "records": 282155,
+  "in_detail": 146532
+ },
+ "aparcaments-ora-aparcamientos-ora": {
+  "records": 33477,
+  "in_detail": 32154
+ },
+ "contenidors-residus-solids-contenidores-residuos-solidos": {
+  "records": 23057,
+  "in_detail": 14720
+ },
+ "contenidors-vidre-contenedores-vidrio": {
+  "records": 3034,
+  "in_detail": 1879
+ },
+ "taxis": {
+  "records": 156,
+  "in_detail": 113
+ },
+ "aparcament-per-a-motos-aparcamiento-para-motos": {
+  "records": 4162,
+  "in_detail": 2680,
+  "places_in_detail": 11335
+ },
+ "vehicles": 53744,
+ "by_kind": {
+  "hatch": 18815,
+  "sedan": 13929,
+  "suv": 10100,
+  "van": 3671,
+  "taxi": 224,
+  "moto": 7005
+ },
+ "inline_bays": 33369,
+ "battery_bays": 22244,
+ "bay_line_km": 193.4,
+ "container_spots_free": 2158,
+ "chains_without_kerb": 1999,
+ "battery_rows": 590,
+ "kerb_lines": 50630,
+ "occupancy": {
+  "free": 0.88,
+  "Azul": 0.8,
+  "Naranja": 0.92,
+  "Verde": 0.92
+ },
+ "containers_in_detail": 16599
+}

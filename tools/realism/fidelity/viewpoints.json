@@ -1,0 +1,1716 @@
+{
+ "note": "Fidelity viewpoints. v = [x, y, z, lookX, lookY, lookZ] in game metres for __slop.look; heading = compass degrees; svDate = Street View capture date. Selection rule: README.md.",
+ "crop": {
+  "top": 0,
+  "bottom": 0.18,
+  "left": 0.28,
+  "right": 0.13
+ },
+ "sets": {
+  "main": [
+   {
+    "id": "01",
+    "kind": "barri",
+    "name": "El Carme",
+    "street": "Carrer de Sant Ramon",
+    "lat": 39.478053,
+    "lon": -0.381082,
+    "heading": 290.6,
+    "v": [
+     87.088,
+     2.5,
+     -1002.603,
+     67.492,
+     2.3,
+     -1025.318
+    ],
+    "snapped": false,
+    "svDate": "May 2017",
+    "svPano": null
+   },
+   {
+    "id": "02",
+    "kind": "barri",
+    "name": "La Seu",
+    "street": "Carrer del Micalet",
+    "lat": 39.4758,
+    "lon": -0.375405,
+    "heading": 211.7,
+    "v": [
+     396.117,
+     2.5,
+     -549.048,
+     370.054,
+     2.3,
+     -534.192
+    ],
+    "snapped": false,
+    "svDate": "Oct 2018",
+    "svPano": null
+   },
+   {
+    "id": "03",
+    "kind": "barri",
+    "name": "La Xerea",
+    "street": "Carrer del Comte de Montornés",
+    "lat": 39.473945,
+    "lon": -0.371517,
+    "heading": 269.5,
+    "v": [
+     591.172,
+     2.5,
+     -208.016,
+     564.712,
+     2.3,
+     -222.154
+    ],
+    "snapped": false,
+    "svDate": "Apr 2023",
+    "svPano": null
+   },
+   {
+    "id": "04",
+    "kind": "barri",
+    "name": "El Mercat",
+    "street": "Carrer d'En Gall",
+    "lat": 39.473225,
+    "lon": -0.378652,
+    "heading": 180.7,
+    "v": [
+     12.036,
+     2.5,
+     -429.467,
+     -2.653,
+     2.3,
+     -403.309
+    ],
+    "snapped": true,
+    "svDate": "Apr 2025",
+    "svPano": {
+     "lat": 39.4731976,
+     "lon": -0.3786576,
+     "heading": 180.7
+    }
+   },
+   {
+    "id": "05",
+    "kind": "barri",
+    "name": "Sant Francesc",
+    "street": "Plaça de l'Ajuntament",
+    "lat": 39.469222,
+    "lon": -0.376678,
+    "heading": 92.7,
+    "v": [
+     -49.832,
+     2.5,
+     39.59,
+     -24.203,
+     2.3,
+     55.183
+    ],
+    "snapped": false,
+    "svDate": "May 2024",
+    "svPano": null
+   },
+   {
+    "id": "06",
+    "kind": "barri",
+    "name": "El Pilar",
+    "street": "Carrer del Bany",
+    "lat": 39.472256,
+    "lon": -0.383006,
+    "heading": 264.8,
+    "v": [
+     -366.507,
+     2.5,
+     -516.912,
+     -394.036,
+     2.3,
+     -528.835
+    ],
+    "snapped": false,
+    "svDate": "May 2017",
+    "svPano": null
+   },
+   {
+    "id": "07",
+    "kind": "barri",
+    "name": "Russafa",
+    "street": "Carrer del Doctor Serrano",
+    "lat": 39.462576,
+    "lon": -0.373006,
+    "heading": 97.8,
+    "v": [
+     -125.857,
+     2.5,
+     838.66,
+     -101.716,
+     2.3,
+     856.47
+    ],
+    "snapped": false,
+    "svDate": "May 2024",
+    "svPano": null
+   },
+   {
+    "id": "08",
+    "kind": "barri",
+    "name": "El Pla del Remei",
+    "street": "Carrer d'Isabel la Catòlica",
+    "lat": 39.468401,
+    "lon": -0.370183,
+    "heading": 330.9,
+    "v": [
+     397.136,
+     2.5,
+     387.292,
+     396.883,
+     2.3,
+     357.294
+    ],
+    "snapped": false,
+    "svDate": "May 2024",
+    "svPano": null
+   },
+   {
+    "id": "09",
+    "kind": "barri",
+    "name": "Gran Via",
+    "street": "Carrer de la Reina Na Germana",
+    "lat": 39.464964,
+    "lon": -0.363366,
+    "heading": 61.8,
+    "v": [
+     729.32,
+     2.5,
+     1003.226,
+     759.319,
+     2.3,
+     1003.444
+    ],
+    "snapped": false,
+    "svDate": "Sep 2026",
+    "svPano": null
+   },
+   {
+    "id": "10",
+    "kind": "barri",
+    "name": "El Botànic",
+    "street": "Gran Via de Ferran el Catòlic",
+    "lat": 39.475897,
+    "lon": -0.388787,
+    "heading": 331.1,
+    "v": [
+     -609.585,
+     2.5,
+     -1110.03,
+     -609.734,
+     2.3,
+     -1140.03
+    ],
+    "snapped": false,
+    "svDate": "Sep 2026",
+    "svPano": null
+   },
+   {
+    "id": "11",
+    "kind": "barri",
+    "name": "La Roqueta",
+    "street": "Carrer del Convent de Jerusalem",
+    "lat": 39.465486,
+    "lon": -0.379952,
+    "heading": 199,
+    "v": [
+     -495.809,
+     2.5,
+     268.772,
+     -517.969,
+     2.3,
+     288.995
+    ],
+    "snapped": false,
+    "svDate": "Feb 2022",
+    "svPano": null
+   },
+   {
+    "id": "12",
+    "kind": "barri",
+    "name": "La Petxina",
+    "street": "Carrer de Martí l’Humà",
+    "lat": 39.472034,
+    "lon": -0.391931,
+    "heading": 151.8,
+    "v": [
+     -1052.496,
+     2.5,
+     -863.112,
+     -1052.714,
+     2.3,
+     -833.113
+    ],
+    "snapped": false,
+    "svDate": "Jan 2022",
+    "svPano": null
+   },
+   {
+    "id": "13",
+    "kind": "barri",
+    "name": "Arrancapins",
+    "street": "Carrer del Marqués de Zenete",
+    "lat": 39.464637,
+    "lon": -0.386732,
+    "heading": 242.3,
+    "v": [
+     -1053.109,
+     2.5,
+     72.085,
+     -1083.105,
+     2.3,
+     71.605
+    ],
+    "snapped": false,
+    "svDate": "May 2024",
+    "svPano": null
+   },
+   {
+    "id": "14",
+    "kind": "barri",
+    "name": "Morvedre",
+    "street": "Plaça de Sant Pere Nolasc",
+    "lat": 39.483692,
+    "lon": -0.374084,
+    "heading": 186.5,
+    "v": [
+     915.565,
+     2.5,
+     -1263.773,
+     898.307,
+     2.3,
+     -1239.234
+    ],
+    "snapped": false,
+    "svDate": "Jun 2018",
+    "svPano": null
+   },
+   {
+    "id": "15",
+    "kind": "barri",
+    "name": "La Trinitat",
+    "street": "Carrer de Xeresa",
+    "lat": 39.481234,
+    "lon": -0.369865,
+    "heading": 111.1,
+    "v": [
+     1103.558,
+     2.5,
+     -850.329,
+     1122.955,
+     2.3,
+     -827.444
+    ],
+    "snapped": false,
+    "svDate": "May 2022",
+    "svPano": null
+   },
+   {
+    "id": "16",
+    "kind": "barri",
+    "name": "Orriols",
+    "street": "Carrer de la Beata Santa Genoveva Torres",
+    "lat": 39.491848,
+    "lon": -0.364814,
+    "heading": 44,
+    "v": [
+     2049.508,
+     2.5,
+     -1676.617,
+     2078.138,
+     2.3,
+     -1685.579
+    ],
+    "snapped": false,
+    "svDate": "Apr 2023",
+    "svPano": null
+   },
+   {
+    "id": "17",
+    "kind": "barri",
+    "name": "Benimaclet",
+    "street": "Carrer de Sant Mateu",
+    "lat": 39.486949,
+    "lon": -0.359024,
+    "heading": 99.1,
+    "v": [
+     2226.372,
+     2.5,
+     -960.521,
+     2250.103,
+     2.3,
+     -942.168
+    ],
+    "snapped": false,
+    "svDate": "Apr 2023",
+    "svPano": null
+   },
+   {
+    "id": "18",
+    "kind": "barri",
+    "name": "Exposició",
+    "street": "Carrer del Pintor Peiró",
+    "lat": 39.475188,
+    "lon": -0.364157,
+    "heading": 237.5,
+    "v": [
+     1213.235,
+     2.5,
+     -25.824,
+     1183.303,
+     2.3,
+     -23.793
+    ],
+    "snapped": false,
+    "svDate": "May 2024",
+    "svPano": null
+   },
+   {
+    "id": "19",
+    "kind": "barri",
+    "name": "Mestalla",
+    "street": "Avinguda d'Aragó",
+    "lat": 39.472916,
+    "lon": -0.357552,
+    "heading": 194.7,
+    "v": [
+     1591.354,
+     2.5,
+     467.829,
+     1570.773,
+     2.3,
+     489.656
+    ],
+    "snapped": false,
+    "svDate": "May 2024",
+    "svPano": null
+   },
+   {
+    "id": "20",
+    "kind": "barri",
+    "name": "Jaume Roig",
+    "street": "Plaça del Professor Tamarit Olmos",
+    "lat": 39.480201,
+    "lon": -0.360907,
+    "heading": 109.9,
+    "v": [
+     1725.304,
+     2.5,
+     -380.455,
+     1745.176,
+     2.3,
+     -357.98
+    ],
+    "snapped": false,
+    "svDate": "May 2024",
+    "svPano": null
+   },
+   {
+    "id": "21",
+    "kind": "barri",
+    "name": "Ciutat Universitària",
+    "street": "Plaça de Fra Lluís Colomer",
+    "lat": 39.478934,
+    "lon": -0.352741,
+    "heading": 201.5,
+    "v": [
+     2274.781,
+     2.5,
+     79.585,
+     2251.76,
+     2.3,
+     98.821
+    ],
+    "snapped": false,
+    "svDate": "May 2024",
+    "svPano": null
+   },
+   {
+    "id": "22",
+    "kind": "barri",
+    "name": "Albors",
+    "street": "Carrer d'Abén Al-Abbar",
+    "lat": 39.468043,
+    "lon": -0.352235,
+    "heading": 17.8,
+    "v": [
+     1733.87,
+     2.5,
+     1161.896,
+     1755.601,
+     2.3,
+     1141.214
+    ],
+    "snapped": false,
+    "svDate": "May 2024",
+    "svPano": null
+   },
+   {
+    "id": "23",
+    "kind": "barri",
+    "name": "Aiora",
+    "street": "Carrer del Mestre Valls",
+    "lat": 39.463814,
+    "lon": -0.342361,
+    "heading": 200.7,
+    "v": [
+     2254.861,
+     2.5,
+     1981.011,
+     2232.111,
+     2.3,
+     2000.567
+    ],
+    "snapped": false,
+    "svDate": "May 2024",
+    "svPano": null
+   },
+   {
+    "id": "24",
+    "kind": "barri",
+    "name": "Penya-roja",
+    "street": "Carrer del Pintor Maella",
+    "lat": 39.46,
+    "lon": -0.348075,
+    "heading": 15.1,
+    "v": [
+     1620.421,
+     2.5,
+     2117.233,
+     1641.154,
+     2.3,
+     2095.55
+    ],
+    "snapped": false,
+    "svDate": "Sep 2026",
+    "svPano": null
+   },
+   {
+    "id": "25",
+    "kind": "barri",
+    "name": "Ciutat de les Arts i de les Ciències",
+    "street": "Avinguda del Professor López Piñero (Historiador de la Medicina)",
+    "lat": 39.454691,
+    "lon": -0.353348,
+    "heading": 309.4,
+    "v": [
+     939.797,
+     2.5,
+     2417.335,
+     928.567,
+     2.3,
+     2389.516
+    ],
+    "snapped": false,
+    "svDate": "Sep 2026",
+    "svPano": null
+   },
+   {
+    "id": "26",
+    "kind": "barri",
+    "name": "Montolivet",
+    "street": "Carrer de l'Arabista Ambrosio Huici",
+    "lat": 39.456075,
+    "lon": -0.362038,
+    "heading": 61.4,
+    "v": [
+     356.959,
+     2.5,
+     1924.297,
+     386.959,
+     2.3,
+     1924.306
+    ],
+    "snapped": false,
+    "svDate": "Jan 2022",
+    "svPano": null
+   },
+   {
+    "id": "27",
+    "kind": "barri",
+    "name": "En Corts",
+    "street": "Carrer de Mas i Boher",
+    "lat": 39.455795,
+    "lon": -0.37296,
+    "heading": 261.9,
+    "v": [
+     -482.965,
+     2.5,
+     1501.445,
+     -511.062,
+     2.3,
+     1490.93
+    ],
+    "snapped": false,
+    "svDate": "May 2024",
+    "svPano": null
+   },
+   {
+    "id": "28",
+    "kind": "barri",
+    "name": "Malilla",
+    "street": "Avinguda d'Ausiàs March",
+    "lat": 39.449007,
+    "lon": -0.369954,
+    "heading": 331.8,
+    "v": [
+     -616.85,
+     2.5,
+     2286.906,
+     -616.632,
+     2.3,
+     2256.906
+    ],
+    "snapped": false,
+    "svDate": "Sep 2026",
+    "svPano": null
+   },
+   {
+    "id": "29",
+    "kind": "barri",
+    "name": "Jesús",
+    "street": "Carrer del Compromís de Casp",
+    "lat": 39.458934,
+    "lon": -0.388058,
+    "heading": 297.4,
+    "v": [
+     -1456.533,
+     2.5,
+     573.26,
+     -1473.301,
+     2.3,
+     548.384
+    ],
+    "snapped": false,
+    "svDate": "May 2024",
+    "svPano": null
+   },
+   {
+    "id": "30",
+    "kind": "barri",
+    "name": "Beteró",
+    "street": "Avinguda de Blasco Ibáñez",
+    "lat": 39.471708,
+    "lon": -0.339169,
+    "heading": 291.2,
+    "v": [
+     2915.748,
+     2.5,
+     1343.203,
+     2896.391,
+     2.3,
+     1320.283
+    ],
+    "snapped": false,
+    "svDate": "Sep 2026",
+    "svPano": null
+   },
+   {
+    "id": "31",
+    "kind": "barri",
+    "name": "El Cabanyal",
+    "street": "Carrer del Sol",
+    "lat": 39.469279,
+    "lon": -0.331417,
+    "heading": 280.8,
+    "v": [
+     3372.162,
+     2.5,
+     1899.43,
+     3348.986,
+     2.3,
+     1880.381
+    ],
+    "snapped": false,
+    "svDate": "Feb 2022",
+    "svPano": null
+   },
+   {
+    "id": "32",
+    "kind": "barri",
+    "name": "El Grau",
+    "street": "Carrer de Salvador Gasull",
+    "lat": 39.461028,
+    "lon": -0.333963,
+    "heading": 105.2,
+    "v": [
+     2741.089,
+     2.5,
+     2598.656,
+     2762.736,
+     2.3,
+     2619.427
+    ],
+    "snapped": false,
+    "svDate": "Apr 2023",
+    "svPano": null
+   },
+   {
+    "id": "33",
+    "kind": "barri",
+    "name": "La Malva-rosa",
+    "street": "Carrer de Vicent la Roda",
+    "lat": 39.480057,
+    "lon": -0.329971,
+    "heading": 293.9,
+    "v": [
+     4054.516,
+     2.5,
+     908.582,
+     4036.26,
+     2.3,
+     884.776
+    ],
+    "snapped": false,
+    "svDate": "May 2024",
+    "svPano": null
+   },
+   {
+    "id": "34",
+    "kind": "pin",
+    "name": "Plaça de l'Ajuntament",
+    "street": "Plaça de l'Ajuntament",
+    "lat": 39.469249,
+    "lon": -0.376878,
+    "heading": 37,
+    "v": [
+     -63.504,
+     2.5,
+     28.716,
+     -36.18,
+     2.3,
+     16.331
+    ],
+    "snapped": false,
+    "svDate": "May 2024",
+    "svPano": null
+   },
+   {
+    "id": "35",
+    "kind": "pin",
+    "name": "Catedral & el Micalet",
+    "street": "Carrer de la Corretgeria",
+    "lat": 39.475322,
+    "lon": -0.376514,
+    "heading": 92,
+    "v": [
+     286.927,
+     2.5,
+     -548.168,
+     312.744,
+     2.3,
+     -532.889
+    ],
+    "snapped": false,
+    "svDate": "May 2019",
+    "svPano": null
+   },
+   {
+    "id": "36",
+    "kind": "pin",
+    "name": "Plaça de la Mare de Déu",
+    "street": "Carrer del Sant Calze",
+    "lat": 39.475983,
+    "lon": -0.376005,
+    "heading": 59.9,
+    "v": [
+     360.525,
+     2.5,
+     -591.612,
+     390.515,
+     2.3,
+     -592.389
+    ],
+    "snapped": false,
+    "svDate": "Apr 2015",
+    "svPano": null
+   },
+   {
+    "id": "37",
+    "kind": "pin",
+    "name": "Torres dels Serrans",
+    "street": "Carrer de Palomino",
+    "lat": 39.478691,
+    "lon": -0.376788,
+    "heading": 36.6,
+    "v": [
+     445.377,
+     2.5,
+     -887.81,
+     472.614,
+     2.3,
+     -900.385
+    ],
+    "snapped": false,
+    "svDate": "Oct 2018",
+    "svPano": null
+   },
+   {
+    "id": "38",
+    "kind": "pin",
+    "name": "Torres de Quart",
+    "street": "Carrer dels Aladers",
+    "lat": 39.47582,
+    "lon": -0.38334,
+    "heading": 249.5,
+    "v": [
+     -202.22,
+     2.5,
+     -878.032,
+     -231.919,
+     2.3,
+     -882.268
+    ],
+    "snapped": false,
+    "svDate": "Sep 2017",
+    "svPano": null
+   },
+   {
+    "id": "39",
+    "kind": "pin",
+    "name": "Llotja de la Seda",
+    "street": "Plaça de la Comunió de Sant Joan",
+    "lat": 39.47445,
+    "lon": -0.379611,
+    "heading": 85.4,
+    "v": [
+     6.614,
+     2.5,
+     -590.822,
+     34.017,
+     2.3,
+     -578.611
+    ],
+    "snapped": false,
+    "svDate": "May 2022",
+    "svPano": null
+   },
+   {
+    "id": "40",
+    "kind": "pin",
+    "name": "Mercat Central",
+    "street": "Plaça de la Ciutat de Bruges",
+    "lat": 39.473057,
+    "lon": -0.379783,
+    "heading": 57.1,
+    "v": [
+     -80.452,
+     2.5,
+     -462.146,
+     -50.536,
+     2.3,
+     -464.387
+    ],
+    "snapped": false,
+    "svDate": "May 2022",
+    "svPano": null
+   },
+   {
+    "id": "41",
+    "kind": "pin",
+    "name": "Estació del Nord & Plaça de Bous",
+    "street": "Carrer de Bailén",
+    "lat": 39.466199,
+    "lon": -0.378207,
+    "heading": 70.4,
+    "v": [
+     -326.08,
+     2.5,
+     271.201,
+     -296.451,
+     2.3,
+     275.903
+    ],
+    "snapped": false,
+    "svDate": "May 2024",
+    "svPano": null
+   },
+   {
+    "id": "42",
+    "kind": "pin",
+    "name": "Mercat de Colón",
+    "street": "Carrer de Martínez Ferrando",
+    "lat": 39.469325,
+    "lon": -0.368201,
+    "heading": 227.5,
+    "v": [
+     595.988,
+     2.5,
+     378.924,
+     566.864,
+     2.3,
+     386.122
+    ],
+    "snapped": false,
+    "svDate": "May 2012",
+    "svPano": null
+   },
+   {
+    "id": "43",
+    "kind": "pin",
+    "name": "Mercat de Russafa",
+    "street": "Carrer de Juan de Dios Montañés",
+    "lat": 39.462583,
+    "lon": -0.37106,
+    "heading": 207,
+    "v": [
+     21.514,
+     2.5,
+     918.181,
+     -3.245,
+     2.3,
+     935.122
+    ],
+    "snapped": false,
+    "svDate": "May 2024",
+    "svPano": null
+   },
+   {
+    "id": "44",
+    "kind": "pin",
+    "name": "Jardí del Túria · Gulliver",
+    "street": "Pont del Regne de València",
+    "lat": 39.461983,
+    "lon": -0.359615,
+    "heading": 15.1,
+    "v": [
+     854.15,
+     2.5,
+     1448.354,
+     874.883,
+     2.3,
+     1426.671
+    ],
+    "snapped": false,
+    "svDate": "May 2024",
+    "svPano": null
+   },
+   {
+    "id": "45",
+    "kind": "pin",
+    "name": "Ciutat de les Arts i les Ciències",
+    "street": "Pont de Montolivet",
+    "lat": 39.456918,
+    "lon": -0.355108,
+    "heading": 82.5,
+    "v": [
+     925.27,
+     2.5,
+     2127.751,
+     953.255,
+     2.3,
+     2138.559
+    ],
+    "snapped": false,
+    "svDate": "May 2024",
+    "svPano": null
+   },
+   {
+    "id": "46",
+    "kind": "pin",
+    "name": "Palau de les Arts",
+    "street": "Avinguda del Professor López Piñero (Historiador de la Medicina)",
+    "lat": 39.457672,
+    "lon": -0.35678,
+    "heading": 56.7,
+    "v": [
+     838.932,
+     2.5,
+     1985.991,
+     868.832,
+     2.3,
+     1983.542
+    ],
+    "snapped": true,
+    "svDate": "Sep 2021",
+    "svPano": {
+     "lat": 39.4576664,
+     "lon": -0.3567778,
+     "heading": 56.7
+    }
+   },
+   {
+    "id": "47",
+    "kind": "pin",
+    "name": "Oceanogràfic",
+    "street": "Carrer d'Eduardo Primo Yúfera",
+    "lat": 39.452039,
+    "lon": -0.34717,
+    "heading": 27,
+    "v": [
+     1265.454,
+     2.5,
+     2930.425,
+     1290.213,
+     2.3,
+     2913.484
+    ],
+    "snapped": false,
+    "svDate": "Sep 2026",
+    "svPano": null
+   },
+   {
+    "id": "48",
+    "kind": "pin",
+    "name": "Estadi de Mestalla",
+    "street": "Carrer del Doctor Joan Reglà",
+    "lat": 39.473611,
+    "lon": -0.358456,
+    "heading": 14.1,
+    "v": [
+     1560.024,
+     2.5,
+     362.835,
+     1580.375,
+     2.3,
+     340.794
+    ],
+    "snapped": false,
+    "svDate": "May 2022",
+    "svPano": null
+   },
+   {
+    "id": "49",
+    "kind": "pin",
+    "name": "Platja de la Malva-rosa",
+    "street": "Carrer de José Ballester Gozalvo",
+    "lat": 39.479877,
+    "lon": -0.324818,
+    "heading": 97,
+    "v": [
+     4434.196,
+     2.5,
+     1138.502,
+     4458.584,
+     2.3,
+     1155.973
+    ],
+    "snapped": false,
+    "svDate": "Apr 2023",
+    "svPano": null
+   },
+   {
+    "id": "50",
+    "kind": "pin",
+    "name": "Veles e Vents & la Marina",
+    "street": "Passeig de la Remor",
+    "lat": 39.462149,
+    "lon": -0.324574,
+    "heading": 185.3,
+    "v": [
+     3509.933,
+     2.5,
+     2876.362,
+     3493.193,
+     2.3,
+     2901.257
+    ],
+    "snapped": false,
+    "svDate": "May 2024",
+    "svPano": null
+   }
+  ],
+  "heldout": [
+   {
+    "id": "h01",
+    "kind": "barri2",
+    "name": "El Carme",
+    "street": "Carrer de Joan Plaça",
+    "lat": 39.478886,
+    "lon": -0.379703,
+    "heading": 112.5,
+    "fromCentre": 135,
+    "v": [
+     235.53,
+     2.5,
+     -1026.956,
+     254.354,
+     2.3,
+     -1003.597
+    ],
+    "snapped": false,
+    "svDate": "Sep 2017",
+    "svPano": null
+   },
+   {
+    "id": "h02",
+    "kind": "barri2",
+    "name": "La Seu",
+    "street": "Carrer d'Avellanes",
+    "lat": 39.474863,
+    "lon": -0.374132,
+    "heading": 204.2,
+    "fromCentre": 131,
+    "v": [
+     442.41,
+     2.5,
+     -405.221,
+     418.509,
+     2.3,
+     -387.091
+    ],
+    "snapped": false,
+    "svDate": "May 2012",
+    "svPano": null
+   },
+   {
+    "id": "h03",
+    "kind": "barri2",
+    "name": "La Xerea",
+    "street": "Carrer del Governador Vell",
+    "lat": 39.475294,
+    "lon": -0.371371,
+    "heading": 212.3,
+    "fromCentre": 144,
+    "v": [
+     673.935,
+     2.5,
+     -333.446,
+     647.717,
+     2.3,
+     -318.863
+    ],
+    "snapped": false,
+    "svDate": "Apr 2023",
+    "svPano": null
+   },
+   {
+    "id": "h04",
+    "kind": "barri2",
+    "name": "El Mercat",
+    "street": "Carrer del Repés",
+    "lat": 39.474062,
+    "lon": -0.377309,
+    "heading": 218.1,
+    "fromCentre": 158,
+    "v": [
+     159.889,
+     2.5,
+     -458.112,
+     132.342,
+     2.3,
+     -446.231
+    ],
+    "snapped": false,
+    "svDate": "Oct 2018",
+    "svPano": null
+   },
+   {
+    "id": "h05",
+    "kind": "barri2",
+    "name": "Sant Francesc",
+    "street": "Carrer de les Barques",
+    "lat": 39.470358,
+    "lon": -0.375684,
+    "heading": 84.5,
+    "fromCentre": 118,
+    "v": [
+     85.618,
+     2.5,
+     -30.126,
+     113.216,
+     2.3,
+     -18.362
+    ],
+    "snapped": false,
+    "svDate": "May 2022",
+    "svPano": null
+   },
+   {
+    "id": "h06",
+    "kind": "barri2",
+    "name": "El Pilar",
+    "street": "Carrer del Forn de l'Hospital",
+    "lat": 39.470927,
+    "lon": -0.382667,
+    "heading": 359,
+    "fromCentre": 144,
+    "v": [
+     -411.6,
+     2.5,
+     -373.4,
+     -397.698,
+     2.3,
+     -399.984
+    ],
+    "snapped": false,
+    "svDate": "Sep 2026",
+    "svPano": null
+   },
+   {
+    "id": "h07",
+    "kind": "barri2",
+    "name": "Russafa",
+    "street": "Carrer de Carles Cervera",
+    "lat": 39.46121,
+    "lon": -0.372772,
+    "heading": 359.1,
+    "fromCentre": 145,
+    "v": [
+     -180.851,
+     2.5,
+     981.447,
+     -166.914,
+     2.3,
+     954.88
+    ],
+    "snapped": false,
+    "svDate": "May 2024",
+    "svPano": null
+   },
+   {
+    "id": "h08",
+    "kind": "barri2",
+    "name": "El Pla del Remei",
+    "street": "Carrer d'Hernán Cortés",
+    "lat": 39.468849,
+    "lon": -0.371838,
+    "heading": 151.2,
+    "fromCentre": 163,
+    "v": [
+     295.964,
+     2.5,
+     275.4,
+     296.044,
+     2.3,
+     305.4
+    ],
+    "snapped": false,
+    "svDate": "May 2024",
+    "svPano": null
+   },
+   {
+    "id": "h09",
+    "kind": "barri2",
+    "name": "Gran Via",
+    "street": "Carrer del Mestre Racional",
+    "lat": 39.463406,
+    "lon": -0.363187,
+    "heading": 239.4,
+    "fromCentre": 140,
+    "v": [
+     660.04,
+     2.5,
+     1162.433,
+     630.058,
+     2.3,
+     1163.463
+    ],
+    "snapped": false,
+    "svDate": "May 2024",
+    "svPano": null
+   },
+   {
+    "id": "h10",
+    "kind": "barri2",
+    "name": "El Botànic",
+    "street": "Carrer del Beat Gaspar Bono",
+    "lat": 39.476953,
+    "lon": -0.387662,
+    "heading": 163.5,
+    "fromCentre": 128,
+    "v": [
+     -468.39,
+     2.5,
+     -1166.607,
+     -474.663,
+     2.3,
+     -1137.27
+    ],
+    "snapped": false,
+    "svDate": "May 2022",
+    "svPano": null
+   },
+   {
+    "id": "h11",
+    "kind": "barri2",
+    "name": "La Roqueta",
+    "street": "Plaça d'Espanya",
+    "lat": 39.465828,
+    "lon": -0.381645,
+    "heading": 36.9,
+    "fromCentre": 146,
+    "v": [
+     -605.5,
+     2.5,
+     165.7,
+     -578.207,
+     2.3,
+     153.246
+    ],
+    "snapped": false,
+    "svDate": "May 2024",
+    "svPano": null
+   },
+   {
+    "id": "h12",
+    "kind": "barri2",
+    "name": "La Petxina",
+    "street": "Avinguda de Pérez Galdós",
+    "lat": 39.470938,
+    "lon": -0.392956,
+    "heading": 151.4,
+    "fromCentre": 144,
+    "v": [
+     -1188.2,
+     2.5,
+     -798.6,
+     -1188.2,
+     2.3,
+     -768.6
+    ],
+    "snapped": false,
+    "svDate": "Aug 2026",
+    "svPano": null
+   },
+   {
+    "id": "h13",
+    "kind": "barri2",
+    "name": "Arrancapins",
+    "street": "Carrer d'Alberic",
+    "lat": 39.465836,
+    "lon": -0.387535,
+    "heading": 151.1,
+    "fromCentre": 104,
+    "v": [
+     -1050.036,
+     2.5,
+     -77.901,
+     -1049.885,
+     2.3,
+     -47.902
+    ],
+    "snapped": false,
+    "svDate": "May 2024",
+    "svPano": null
+   },
+   {
+    "id": "h14",
+    "kind": "barri2",
+    "name": "Morvedre",
+    "street": "Carrer de la Saboneria",
+    "lat": 39.485027,
+    "lon": -0.374364,
+    "heading": 282.4,
+    "fromCentre": 118,
+    "v": [
+     965.425,
+     2.5,
+     -1405.411,
+     942.778,
+     2.3,
+     -1425.088
+    ],
+    "snapped": false,
+    "svDate": "Apr 2014",
+    "svPano": null
+   },
+   {
+    "id": "h15",
+    "kind": "barri2",
+    "name": "La Trinitat",
+    "street": "Volta del Rossinyol",
+    "lat": 39.479943,
+    "lon": -0.37044,
+    "heading": 71.1,
+    "fromCentre": 123,
+    "v": [
+     991.428,
+     2.5,
+     -748.174,
+     1020.997,
+     2.3,
+     -743.109
+    ],
+    "snapped": false,
+    "svDate": "Apr 2023",
+    "svPano": null
+   },
+   {
+    "id": "h16",
+    "kind": "barri2",
+    "name": "Orriols",
+    "street": "Carrer de Santa Genoveva Torres",
+    "lat": 39.490873,
+    "lon": -0.36606,
+    "heading": 44.9,
+    "fromCentre": 155,
+    "v": [
+     1903.538,
+     2.5,
+     -1632.966,
+     1932.309,
+     2.3,
+     -1641.466
+    ],
+    "snapped": false,
+    "svDate": "May 2022",
+    "svPano": null
+   },
+   {
+    "id": "h17",
+    "kind": "barri2",
+    "name": "Benimaclet",
+    "street": "Carrer de Francesc Martínez",
+    "lat": 39.488288,
+    "lon": -0.35871,
+    "heading": 279.2,
+    "fromCentre": 145,
+    "v": [
+     2321.32,
+     2.5,
+     -1078.069,
+     2297.61,
+     2.3,
+     -1096.449
+    ],
+    "snapped": false,
+    "svDate": "Apr 2023",
+    "svPano": null
+   },
+   {
+    "id": "h18",
+    "kind": "barri2",
+    "name": "Exposició",
+    "street": "Carrer d'Amadeu de Savoia",
+    "lat": 39.474037,
+    "lon": -0.363212,
+    "heading": 110.2,
+    "fromCentre": 127,
+    "v": [
+     1223.444,
+     2.5,
+     125.334,
+     1243.214,
+     2.3,
+     147.899
+    ],
+    "snapped": false,
+    "svDate": "May 2024",
+    "svPano": null
+   },
+   {
+    "id": "h19",
+    "kind": "barri2",
+    "name": "Mestalla",
+    "street": "Carrer d'Alginet",
+    "lat": 39.47203,
+    "lon": -0.3589,
+    "heading": 17.5,
+    "fromCentre": 133,
+    "v": [
+     1442.426,
+     2.5,
+     498.568,
+     1464.045,
+     2.3,
+     477.768
+    ],
+    "snapped": false,
+    "svDate": "Jan 2024",
+    "svPano": null
+   },
+   {
+    "id": "h20",
+    "kind": "barri2",
+    "name": "Jaume Roig",
+    "street": "Carretera de Casa Clemencia",
+    "lat": 39.480149,
+    "lon": -0.358838,
+    "heading": 16.5,
+    "fromCentre": 101,
+    "v": [
+     1878.8,
+     2.5,
+     -290.1,
+     1900.07,
+     2.3,
+     -311.257
+    ],
+    "snapped": false,
+    "svDate": "May 2024",
+    "svPano": null
+   },
+   {
+    "id": "h21",
+    "kind": "barri2",
+    "name": "Ciutat Universitària",
+    "street": "Avinguda de Catalunya",
+    "lat": 39.478871,
+    "lon": -0.354499,
+    "heading": 200.6,
+    "fromCentre": 130,
+    "v": [
+     2138.647,
+     2.5,
+     13.231,
+     2115.947,
+     2.3,
+     32.845
+    ],
+    "snapped": false,
+    "svDate": "May 2024",
+    "svPano": null
+   },
+   {
+    "id": "h22",
+    "kind": "barri2",
+    "name": "Albors",
+    "street": "Carrer de Rodríguez Cepeda",
+    "lat": 39.467862,
+    "lon": -0.350487,
+    "heading": 104.6,
+    "fromCentre": 131,
+    "v": [
+     1856.316,
+     2.5,
+     1251.538,
+     1878.183,
+     2.3,
+     1272.077
+    ],
+    "snapped": false,
+    "svDate": "Mar 2023",
+    "svPano": null
+   },
+   {
+    "id": "h23",
+    "kind": "barri2",
+    "name": "Aiora",
+    "street": "Carrer de Ramon Marquet",
+    "lat": 39.464173,
+    "lon": -0.344051,
+    "heading": 111.1,
+    "fromCentre": 92,
+    "v": [
+     2146.304,
+     2.5,
+     1876.357,
+     2165.689,
+     2.3,
+     1899.253
+    ],
+    "snapped": false,
+    "svDate": "May 2024",
+    "svPano": null
+   },
+   {
+    "id": "h24",
+    "kind": "barri2",
+    "name": "Penya-roja",
+    "street": "Carrer d'Higinio Noja (Professor)",
+    "lat": 39.460823,
+    "lon": -0.346689,
+    "heading": 199.1,
+    "fromCentre": 145,
+    "v": [
+     1768.879,
+     2.5,
+     2094.132,
+     1746.678,
+     2.3,
+     2114.309
+    ],
+    "snapped": false,
+    "svDate": "Sep 2026",
+    "svPano": null
+   },
+   {
+    "id": "h25",
+    "kind": "barri2",
+    "name": "Ciutat de les Arts i de les Ciències",
+    "street": "Pont de l'Assut de l'Or",
+    "lat": 39.45377,
+    "lon": -0.351483,
+    "heading": 265.1,
+    "fromCentre": 189,
+    "v": [
+     1031.674,
+     2.5,
+     2583.986,
+     1004.202,
+     2.3,
+     2571.932
+    ],
+    "snapped": false,
+    "svDate": "May 2022",
+    "svPano": null
+   },
+   {
+    "id": "h26",
+    "kind": "barri2",
+    "name": "Montolivet",
+    "street": "Avinguda d'Amado Granell Mesado (Militar)",
+    "lat": 39.454732,
+    "lon": -0.361813,
+    "heading": 330.9,
+    "fromCentre": 142,
+    "v": [
+     302.529,
+     2.5,
+     2064.501,
+     302.272,
+     2.3,
+     2034.502
+    ],
+    "snapped": false,
+    "svDate": "Sep 2026",
+    "svPano": null
+   },
+   {
+    "id": "h27",
+    "kind": "barri2",
+    "name": "En Corts",
+    "street": "Carrer del Pare Vicent",
+    "lat": 39.457123,
+    "lon": -0.372608,
+    "heading": 93,
+    "fromCentre": 129,
+    "v": [
+     -385.786,
+     2.5,
+     1386.492,
+     -360.235,
+     2.3,
+     1402.213
+    ],
+    "snapped": false,
+    "svDate": "Sep 2026",
+    "svPano": null
+   },
+   {
+    "id": "h28",
+    "kind": "barri2",
+    "name": "Malilla",
+    "street": "Carrer de Manuel Izquierdo",
+    "lat": 39.448494,
+    "lon": -0.371574,
+    "heading": 242.3,
+    "fromCentre": 147,
+    "v": [
+     -766.497,
+     2.5,
+     2270.128,
+     -796.494,
+     2.3,
+     2269.663
+    ],
+    "snapped": false,
+    "svDate": "Sep 2026",
+    "svPano": null
+   },
+   {
+    "id": "h29",
+    "kind": "barri2",
+    "name": "Jesús",
+    "street": "Carrer del Marqués de Campo",
+    "lat": 39.460277,
+    "lon": -0.387809,
+    "heading": 304.5,
+    "fromCentre": 143,
+    "v": [
+     -1366.32,
+     2.5,
+     452.653,
+     -1379.892,
+     2.3,
+     425.898
+    ],
+    "snapped": false,
+    "svDate": "Aug 2026",
+    "svPano": null
+   },
+   {
+    "id": "h30",
+    "kind": "barri2",
+    "name": "Beteró",
+    "street": "Carrer de José María Haro (Magistrat)",
+    "lat": 39.472255,
+    "lon": -0.337552,
+    "heading": 200.7,
+    "fromCentre": 128,
+    "v": [
+     3066.988,
+     2.5,
+     1356.531,
+     3044.223,
+     2.3,
+     1376.069
+    ],
+    "snapped": false,
+    "svDate": "Sep 2026",
+    "svPano": null
+   },
+   {
+    "id": "h31",
+    "kind": "barri2",
+    "name": "El Cabanyal",
+    "street": "Carrer de Sant Pere",
+    "lat": 39.468054,
+    "lon": -0.332197,
+    "heading": 11.3,
+    "fromCentre": 121,
+    "v": [
+     3248.108,
+     2.5,
+     1986.703,
+     3267.377,
+     2.3,
+     1963.71
+    ],
+    "snapped": false,
+    "svDate": "May 2022",
+    "svPano": null
+   },
+   {
+    "id": "h32",
+    "kind": "barri2",
+    "name": "El Grau",
+    "street": "Carrer de Joan Baptista Llovera",
+    "lat": 39.460113,
+    "lon": -0.33526,
+    "heading": 278.2,
+    "fromCentre": 146,
+    "v": [
+     2594.483,
+     2.5,
+     2634.422,
+     2570.462,
+     2.3,
+     2616.45
+    ],
+    "snapped": false,
+    "svDate": "Jan 2024",
+    "svPano": null
+   },
+   {
+    "id": "h33",
+    "kind": "barri2",
+    "name": "La Malva-rosa",
+    "street": "Carrer del Doctor Álvaro López",
+    "lat": 39.479162,
+    "lon": -0.33129,
+    "heading": 9.7,
+    "fromCentre": 145,
+    "v": [
+     3907.275,
+     2.5,
+     941.468,
+     3925.882,
+     2.3,
+     917.936
+    ],
+    "snapped": false,
+    "svDate": "Sep 2026",
+    "svPano": null
+   }
+  ]
+ }
+}

@@ -25,9 +25,12 @@ function createPedestrianRoutes({ walkable, onSidewalk }, blockAt) {
     if (sidewalks.has(e)) return sidewalks.get(e);
     const result = [];
     sidewalks.set(e, result);
-    // Two walking lines on each side leave room for people to pass or stop together.
+    // Two walking lines on each side leave room for people to pass or stop together. The old town's narrow
+    // sidewalks (1-2 m) take one line, nearer the curb, when neither of those fits.
     for (const sign of [-1, 1]) {
-      for (const inset of [1.7, 2.8]) {
+      let found = 0;
+      for (const inset of [1.7, 2.8, 1.15, 0.8]) {
+        if (inset < 1.7 && found) break;
         const off = sign * (e.half + inset);
         const a = { x: e.sx + e.rx * off, z: e.sz + e.rz * off };
         const b = { x: a.x + e.dx * e.len, z: a.z + e.dz * e.len };
@@ -35,6 +38,7 @@ function createPedestrianRoutes({ walkable, onSidewalk }, blockAt) {
         if (!block || blockAt(b.x, b.z) !== block || !clear(a, b, block)) continue;
         if (!e.general && (!onSidewalk(a.x, a.z) || !onSidewalk(b.x, b.z))) continue;
         result.push(segment(a, b, { edge: e, from: e.from, to: e.to, block }));
+        found++;
       }
     }
     return result;

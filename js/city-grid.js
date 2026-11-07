@@ -27,6 +27,7 @@ import {
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { ISLAND_BOUNDS, COASTLINE, BLOCKS } from './city-config.js';
 import { GEO } from './bcn-geodata.js';
+import { groundPhotoAt } from './ground-photo.js';
 import {
   createRoadSurfaceMaterial,
   createSidewalkMaterial,
@@ -245,6 +246,7 @@ function buildCityGrid(scene) {
   const seawallPolygon = offsetPolygon(COASTLINE, -1.5) || COASTLINE;
   group.add(createExtrudedPolygonMesh(seawallPolygon, -2.35, 2.31, seawallMat, true, false));
   const roadMat = createRoadSurfaceMaterial();
+  roadMat.name = 'road';
   group.add(createFlatPolygonMesh(COASTLINE, 0.0, roadMat, true));
 
   // =========================================================================
@@ -260,7 +262,9 @@ function buildCityGrid(scene) {
   //    are extruded from their outlines
   // =========================================================================
   const sidewalkMat = createSidewalkMaterial();
+  sidewalkMat.name = 'sidewalk';
   const curbMat = createCurbMaterial();
+  curbMat.name = 'curb';
   const medianHedgeMat = new THREE.MeshStandardNodeMaterial({ color: 0x366e3b, roughness: 0.82 });
   const blockSidewalks = []; // { cx, cz, w, d, block } axis-aligned slabs (irregular islands: their lot cover)
   const roadSidewalks = []; // the curbs road-network.js bounds the roads with (medians go in as footprints)
@@ -268,6 +272,9 @@ function buildCityGrid(scene) {
   const curbGeos = [];
   const hedgeGeos = [];
   const SW_TOP = 0.22;
+  const lotGroundGeos = [];
+  const lotGroundMat = new THREE.MeshStandardNodeMaterial({ roughness: 0.95, metalness: 0.0 });
+  lotGroundMat.colorNode = groundPhotoAt(positionWorld.xz).color;
   for (const b of BLOCKS) {
     if (b.park > 0.6 && !b.median && b.parkName !== 'Bryant Park') continue; // parks build their own perimeter sidewalk (sections 7, 7B)
     if (b.rect) {
@@ -289,6 +296,12 @@ function buildCityGrid(scene) {
       }
       if (b.median) addFootprint((b.minX + b.maxX) * 0.5, (b.minZ + b.maxZ) * 0.5, b.maxX - b.minX, b.maxZ - b.minZ);
     }
+    // The block's interior, 7 m in from the curb, on the aerial photo: orchards, campus lawns, yards & patios in their
+    // real colours (the generated or real buildings stand over most of it); sidewalks keep their paving
+    if (!b.median && !b.rect && b.area > 2500) {
+      const core = offsetPolygonInward(b.poly, 7.0);
+      if (core) lotGroundGeos.push(createExtrudedPolygonMesh(core, SW_TOP - 0.02, SW_TOP + 0.004, lotGroundMat).geometry);
+    }
     // Planted medians down Gran Via, Diagonal, Meridiana...: a clipped hedge on the slab
     if (b.median && Math.min(b.maxX - b.minX, b.maxZ - b.minZ) > 2.2) {
       const hedge = offsetPolygonInward(b.poly, 1.0);
@@ -306,6 +319,7 @@ function buildCityGrid(scene) {
   mergeInto(curbGeos, curbMat, true);
   mergeInto(slabGeos, sidewalkMat);
   mergeInto(hedgeGeos, medianHedgeMat, true);
+  mergeInto(lotGroundGeos, lotGroundMat);
 
   const rectSlabs = blockSidewalks.filter((s) => !s.cover);
   const swInstanced = new THREE.InstancedMesh(unitBox, sidewalkMat, rectSlabs.length);
@@ -332,6 +346,7 @@ function buildCityGrid(scene) {
 
   // 5. Street furniture shared by the parks, squares & promenades (instanced at the end of section 6)
   const pavingMat = createParkPavingMaterial();
+  pavingMat.name = 'paving';
   const graniteMat = new THREE.MeshStandardNodeMaterial({ color: 0x86837c, roughness: 0.8 }); // benches, planters, copings
   const benchMatrices = []; // slatted park benches
   const lampMatrices = []; // cast-iron lampposts with glass globes

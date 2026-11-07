@@ -3,7 +3,9 @@ import { buildRoadNetwork } from './road-network.js';
 import { createPedestrianSystem } from './pedestrian-system.js';
 import { vehicleContact, resolveVehicleContact, sweptVehicleContact } from './vehicle-physics.js';
 import { signalPhase, walkSignal } from './city-config.js';
+import { attribute, float, texture, uv, vec2 } from 'three/tsl';
 import { cityUniforms, createContactShadowMaterial, createCarFlareMaterial } from './tsl-materials.js';
+import { BUS_LINES } from './vlc-shops.js';
 import { HEADLIGHTS, createVehicleHeadlight, placeVehicleHeadlight } from './vehicle-lights.js';
 import {
   BODY_SPECS,
@@ -39,27 +41,40 @@ const VEHICLE_RADIUS = 380;
 const NEAR_RADIUS = 350;
 const VEHICLE_SPAWN_DISTANCE = 250;
 
+// The buses' destination signs: one row per bus of a 512 x 64 px atlas, each a real EMT València line and the
+// destination of one of its directions (BUS_LINES, from OpenStreetMap's route relations), the line number boxed on the
+// left and the destination in amber LEDs. The rear sign shows only the number (buildBusSignGeometry).
+const BUS_SIGNS = Array.from({ length: NUM_BUSES }, (_, i) => BUS_LINES[Math.floor(((i * 7) % NUM_BUSES + 0.5) * BUS_LINES.length / NUM_BUSES)])
+  .filter(Boolean);
 function createBusDestinationTexture() {
+  const W = 512, R = 64;
   const c = document.createElement('canvas');
-  c.width = 256;
-  c.height = 64;
+  c.width = W;
+  c.height = R * NUM_BUSES;
   const ctx = c.getContext('2d');
   ctx.fillStyle = '#0c0f14';
-  ctx.fillRect(0, 0, 256, 64);
-  // TMB's route badge (the orthogonal network's V lines are green) & the destination in amber LEDs
-  ctx.fillStyle = '#5bb233';
-  ctx.fillRect(6, 8, 62, 48);
-  ctx.fillStyle = '#ffffff';
-  ctx.font = '900 26px Inter, Arial, sans-serif';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText('V15', 37, 33);
-  ctx.fillStyle = '#ff9d1c';
-  ctx.font = '800 20px JetBrains Mono, monospace';
-  ctx.textAlign = 'left';
-  ctx.fillText('BARCELONETA', 76, 33);
+  ctx.fillRect(0, 0, W, c.height);
+  BUS_SIGNS.forEach(([line, to], row) => {
+    const y = row * R;
+    ctx.strokeStyle = '#ffb02e';
+    ctx.lineWidth = 3;
+    ctx.strokeRect(10, y + 10, 124, 44);
+    ctx.fillStyle = '#ffb02e';
+    ctx.textBaseline = 'middle';
+    ctx.textAlign = 'center';
+    ctx.font = '900 34px "Helvetica Neue", Arial, sans-serif';
+    ctx.fillText(line, 72, y + 34);
+    ctx.textAlign = 'left';
+    const text = to.toUpperCase();
+    let px = 30;
+    do {
+      ctx.font = `700 ${px}px "Helvetica Neue", Arial, sans-serif`;
+    } while (ctx.measureText(text).width > W - 164 && --px > 14);
+    ctx.fillText(text, 152, y + 34);
+  });
   const tex = new THREE.CanvasTexture(c);
   tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = 4;
   return tex;
 }
 
@@ -150,7 +165,7 @@ function createTrafficSystem(scene, sidewalks, obstacles, signalIntersections) {
   const suvMat = createLoftedCarMaterial(BODY_SPECS.suv);
   const carWheelMat = createLoftedCarMaterial(BODY_SPECS.sedan, 0x141518);
 
-  const taxiBlack = new THREE.Color(0x141518); // its doors are painted yellow by the taxi material
+  const taxiWhite = new THREE.Color(0xf2f3f1); // València's taxis are white
   const policeWhite = new THREE.Color(0xf6f9fc);
   const sedanPalette = [
     new THREE.Color(0xeef0f2), // White
@@ -185,7 +200,7 @@ function createTrafficSystem(scene, sidewalks, obstacles, signalIntersections) {
     if (isTaxi) {
       bodyType = 'taxi';
       taxiCount++;
-      col = taxiBlack;
+      col = taxiWhite;
     } else if (isSUV) {
       bodyType = 'suv';
       suvCount++;
@@ -282,9 +297,12 @@ function createTrafficSystem(scene, sidewalks, obstacles, signalIntersections) {
   const busHeaderGeo = buildBusSignGeometry();
 
   const busBodyMat = createLoftedBusMaterial();
-  const busDestMat = new THREE.MeshBasicNodeMaterial({
-    map: createBusDestinationTexture()
-  });
+  // each bus shows its own row of the sign atlas (busLine, written per drawn slot in renderBus)
+  const busLines = new THREE.InstancedBufferAttribute(new Float32Array(NUM_BUSES), 1);
+  busHeaderGeo.setAttribute('busLine', busLines);
+  const busDestMat = new THREE.MeshBasicNodeMaterial();
+  const busRow = attribute('busLine', 'float');
+  busDestMat.colorNode = texture(createBusDestinationTexture(), vec2(uv().x, float(NUM_BUSES).sub(busRow).sub(1).add(uv().y).div(NUM_BUSES)));
 
   const busWheelMat = createBusWheelMaterial();
   const busBodyInst = new THREE.InstancedMesh(busBodyGeo, busBodyMat, NUM_BUSES);
@@ -299,7 +317,11 @@ function createTrafficSystem(scene, sidewalks, obstacles, signalIntersections) {
   busWheelRightInst.castShadow = busWheelRightInst.receiveShadow = true;
 
   const buses = [];
-  for (let i = 0; i < NUM_BUSES; i++) buses.push(createVehicle(true, 6.0, 1.3, 3.6, BUS_DRIVER, 8 + (i % 3)));
+  for (let i = 0; i < NUM_BUSES; i++) {
+    const bus = createVehicle(true, 6.0, 1.3, 3.6, BUS_DRIVER, 8 + (i % 3));
+    bus.sign = i % BUS_SIGNS.length; // its row of the destination sign atlas
+    buses.push(bus);
+  }
   const vehicles = [...cars, ...buses];
   group.add(busBodyInst, busHeaderInst, busWheelLeftInst, busWheelRightInst);
 
@@ -1466,6 +1488,7 @@ function createTrafficSystem(scene, sidewalks, obstacles, signalIntersections) {
     busBodyInst.setMatrixAt(i, dummy.matrix);
     busHeaderInst.setMatrixAt(i, dummy.matrix);
     writeLampState(b, busStates.array, i * 4);
+    busLines.array[i] = b.sign;
 
     const dxCam = b.x - camX;
     const dzCam = b.z - camZ;
@@ -1719,7 +1742,10 @@ function createTrafficSystem(scene, sidewalks, obstacles, signalIntersections) {
     syncInst(busWheelLeftInst, visibleBuses * 2);
     syncInst(busWheelRightInst, visibleBuses * 2);
     syncInst(busShadowInst, visibleBuses);
-    if (visibleBuses > 0) flagRange(busStates, visibleBuses);
+    if (visibleBuses > 0) {
+      flagRange(busStates, visibleBuses);
+      flagRange(busLines, visibleBuses);
+    }
     updateTrafficLights();
 
     // 2. Pedestrians
@@ -1769,7 +1795,7 @@ function createHighwayTraffic(scene, lanes) {
   scene.add(group);
   const KINDS = ['taxi', 'sedan', 'suv'];
   const PALETTES = {
-    taxi: [0x141518],
+    taxi: [0xf2f3f1],
     sedan: [0x1c2026, 0xcfd6de, 0x1d3b6c, 0x52575e, 0x6e1f24, 0x8a8f96, 0xe9ecef],
     suv: [0x16191e, 0xf0f3f7, 0x3a434d, 0x28382e, 0xbec6cf, 0x5b2a2a]
   };

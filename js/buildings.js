@@ -1,6 +1,9 @@
 import * as THREE from 'three/webgpu';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { createFireEscapes } from './fire-escapes.js';
+import { createBalconies } from './vlc-balconies.js';
+import { facadeStyle, graffitiLevel } from './vlc-facade-rules.js';
+import { createCables } from './vlc-cables.js';
+import { createFences } from './vlc-fence-mesh.js';
 import {
   Fn,
   float,
@@ -19,9 +22,12 @@ import {
   mix,
   length,
   mx_noise_float,
-  mx_worley_noise_float
+  mx_worley_noise_float,
+  attribute
 } from 'three/tsl';
-import { ISLAND_BOUNDS, BLOCKS, LANDMARK_SITES } from './city-config.js';
+import { ISLAND_BOUNDS, BLOCKS, LANDMARK_SITES, LANDMARK_CIRCLES, districtAt, barriAt } from './city-config.js';
+import { REAL_BUILDINGS } from './vlc-buildings.js';
+import { planShopSigns } from './shop-signs.js';
 import {
   createPreWarBuildingMaterial,
   createCurtainWallMaterial,
@@ -32,7 +38,7 @@ import {
 import { pavedPlazaRects, parkTreeSites, sidewalkBlocks } from './city-grid.js';
 
 // Building massing follows each block's lots and frontage frames. Footprints combine non-overlapping boxes.
-// A spatial quadtree streams cornices, rooftop equipment, fire escapes and storefront details around the player.
+// A spatial quadtree streams cornices, rooftop equipment, balconies and storefront details around the player.
 
 function mulberry32(seed) {
   let a = seed >>> 0;
@@ -286,83 +292,60 @@ function buildCityBlocks(scene) {
   }, 6, 9);
   const allBlocks = [];
 
+  // València's facade kit. Wall colours are the sunlit wall clusters measured on open reference photos
+  // (reference/credits.json); indices 0-2 are masonry and 3-5 glass as the lot generator expects, 6+ València's own.
+  // Party & rear walls everywhere: orange hollow brick and beige render, no painted adverts, a cleaner coastal city.
+  const VLC = { backColors: [0xb06e4c, 0xc0835e, 0xcfc4b0, 0xbfb39d], pargeColor: 0xb4aea4, signs: 0, soot: 0.45 };
+  // Persianes & ground-floor bases by era (gap #4, from reference/f-*): wooden alicantina roll blinds & louvres
+  // (natural wood, green, brown) on the old town & Ensanche, PVC rollers in their box (white, beige, grey) on the
+  // 1960s-70s brick, dark wood rollers on the rationalist render, aluminium on the modern; a stone or terrazzo sòcol
+  const OLD_BLINDS = { persianaColors: [0x7d6446, 0x4c6448, 0x8f7c5a], persianaSlats: 14, persianaOpen: 0.5, plinthColor: 0x9a958c, plinth: 0.8 };
   const facades = [
-    // 0: Eixample stone & cream stucco (tall balcony doors, a storey ~3.5 m)
-    [createPreWarBuildingMaterial, {
-      stoneColor: 0xd7c6a3,
-      trimColor: 0xa8946f,
-      windowGlassColor: 0x1a2430,
-      windowWidth: 2.4,
-      floorHeight: 3.5,
-      windowRatioX: 0.42,
-      windowRatioY: 0.68,
-      litProbability: 0.5,
-      warmth: 0.84,
-      stucco: 1,
-      seed: 12.4
-    }],
-    // 1: Ochre & terracotta stucco (Gràcia, Sants, the Eixample's plainer houses)
-    [createPreWarBuildingMaterial, {
-      stoneColor: 0xc8925f,
-      trimColor: 0xe4d4b4,
-      windowGlassColor: 0x17212b,
-      windowWidth: 2.3,
-      floorHeight: 3.3,
-      windowRatioX: 0.42,
-      windowRatioY: 0.66,
-      litProbability: 0.56,
-      warmth: 0.88,
-      stucco: 1,
-      seed: 27.8
-    }],
-    // 2: Weathered old-town render & Poblenou's factory brick
-    [createPreWarBuildingMaterial, {
-      stoneColor: 0x9c7458,
-      trimColor: 0xcdb898,
-      windowGlassColor: 0x151e26,
-      windowWidth: 2.0,
-      floorHeight: 3.2,
-      windowRatioX: 0.4,
-      windowRatioY: 0.64,
-      litProbability: 0.6,
-      warmth: 0.9,
-      stucco: 0.6,
-      seed: 41.2
-    }],
-    // 3: Blue-teal curtain-wall glass (Diagonal's office towers, 22@)
-    [createCurtainWallMaterial, {
-      glassTint: 0x1a3a52,
-      frameTint: 0x3b4c5b,
-      windowWidth: 2.7,
-      floorHeight: 3.9,
-      litProbability: 0.60,
-      warmth: 0.52,
-      reflectivity: 0.92,
-      seed: 63.5
-    }],
-    // 4: Dark bronze / charcoal glass (Diagonal Mar, Plaça d'Europa)
-    [createCurtainWallMaterial, {
-      glassTint: 0x242220,
-      frameTint: 0x3c3631,
-      windowWidth: 2.5,
-      floorHeight: 3.8,
-      litProbability: 0.64,
-      warmth: 0.72,
-      reflectivity: 0.88,
-      seed: 81.9
-    }],
-    // 5: Silver / ice-blue contemporary glass (the Vila Olímpica's towers, Glòries)
-    [createCurtainWallMaterial, {
-      glassTint: 0x264664,
-      frameTint: 0xb0bcc8,
-      windowWidth: 2.9,
-      floorHeight: 4.1,
-      litProbability: 0.58,
-      warmth: 0.48,
-      reflectivity: 0.95,
-      seed: 94.3
-    }]
+    // 0: Ensanche cream stone & stucco (modernista fronts, tall balcony doors, a storey ~3.5 m)
+    [createPreWarBuildingMaterial, { ...VLC, stoneColor: 0xcdbfa3, trimColor: 0xebe3d2, windowGlassColor: 0x1a2430, windowWidth: 2.4,
+      floorHeight: 3.5, windowRatioX: 0.42, windowRatioY: 0.7, litProbability: 0.5, warmth: 0.84, stucco: 1, seed: 12.4,
+      ...OLD_BLINDS, persianaColors: [0x8a6b48, 0x4f6b4c, 0x6e5a3e], plinthColor: 0x8f8a82, plinth: 0.9 }],
+    // 1: Ciutat Vella & Russafa ochre render
+    [createPreWarBuildingMaterial, { ...VLC, stoneColor: 0xc69a62, trimColor: 0xeae0cc, windowGlassColor: 0x17212b, windowWidth: 2.1,
+      floorHeight: 3.2, windowRatioX: 0.4, windowRatioY: 0.66, litProbability: 0.56, warmth: 0.88, stucco: 1, seed: 27.8, ...OLD_BLINDS }],
+    // 2: Ciutat Vella peach / salmon render
+    [createPreWarBuildingMaterial, { ...VLC, stoneColor: 0xd5aa8a, trimColor: 0xefe6d7, windowGlassColor: 0x151e26, windowWidth: 2.1,
+      floorHeight: 3.2, windowRatioX: 0.4, windowRatioY: 0.66, litProbability: 0.6, warmth: 0.9, stucco: 1, seed: 41.2, ...OLD_BLINDS }],
+    // 3: blue-teal curtain-wall glass (offices)
+    [createCurtainWallMaterial, { glassTint: 0x1a3a52, frameTint: 0x3b4c5b, windowWidth: 2.7, floorHeight: 3.9, litProbability: 0.6,
+      warmth: 0.52, reflectivity: 0.92, seed: 63.5 }],
+    // 4: dark bronze glass
+    [createCurtainWallMaterial, { glassTint: 0x242220, frameTint: 0x3c3631, windowWidth: 2.5, floorHeight: 3.8, litProbability: 0.64,
+      warmth: 0.72, reflectivity: 0.88, seed: 81.9 }],
+    // 5: silver / ice-blue glass (the towers by the Ciutat de les Arts, Av. de França)
+    [createCurtainWallMaterial, { glassTint: 0x2b4b66, frameTint: 0xc4ccd4, windowWidth: 2.9, floorHeight: 3.3, litProbability: 0.58,
+      warmth: 0.48, reflectivity: 0.95, seed: 94.3 }],
+    // 6: almagra: deep red render, an old-town accent
+    [createPreWarBuildingMaterial, { ...VLC, stoneColor: 0x8f3a30, trimColor: 0xe4d9c5, windowGlassColor: 0x161d24, windowWidth: 2.0,
+      floorHeight: 3.2, windowRatioX: 0.4, windowRatioY: 0.66, litProbability: 0.55, warmth: 0.9, stucco: 1, seed: 52.6, ...OLD_BLINDS }],
+    // 7: 1960s-70s orange face brick (the desarrollismo blocks of Russafa's edges, Arrancapins, Orriols...)
+    [createPreWarBuildingMaterial, { ...VLC, stoneColor: 0xb3714f, trimColor: 0xd9cdb6, windowGlassColor: 0x18212a, windowWidth: 2.0,
+      floorHeight: 2.9, windowRatioX: 0.5, windowRatioY: 0.56, litProbability: 0.58, warmth: 0.86, stucco: 0, seed: 66.1,
+      persianaColors: [0xd9d3c5, 0xc7bfae, 0xe6e2d8], persianaSlats: 20, persianaOpen: 0.3, persianaBox: 1, plinthColor: 0x7d756c, plinth: 1.0 }],
+    // 8: modern white render (1985 on), wider windows
+    [createPreWarBuildingMaterial, { ...VLC, stoneColor: 0xe2ddd3, trimColor: 0xb8b2a6, windowGlassColor: 0x1a2632, windowWidth: 3.0,
+      floorHeight: 3.0, windowRatioX: 0.58, windowRatioY: 0.52, litProbability: 0.52, warmth: 0.8, stucco: 1, seed: 71.9,
+      persianaColors: [0xc4c3bd, 0x9fa3a6, 0xe0ddd5], persianaSlats: 20, persianaOpen: 0.45, persianaBox: 1, plinthColor: 0x5f5e5c, plinth: 0.6 }],
+    // 9: 1930s-50s rationalist grey render
+    [createPreWarBuildingMaterial, { ...VLC, stoneColor: 0xc6c2ba, trimColor: 0xa7a198, windowGlassColor: 0x17202a, windowWidth: 2.4,
+      floorHeight: 3.2, windowRatioX: 0.46, windowRatioY: 0.6, litProbability: 0.54, warmth: 0.84, stucco: 1, seed: 77.3,
+      persianaColors: [0x5b4433, 0x6d5442, 0x4a3b30], persianaSlats: 18, persianaOpen: 0.35, persianaBox: 1, plinthColor: 0x8a8781, plinth: 0.9 }],
+    // 10: Poblats Marítims house: whitewash over a green-and-white tiled dado
+    [createPreWarBuildingMaterial, { ...VLC, stoneColor: 0xe0d8c1, trimColor: 0xf0ebe0, windowGlassColor: 0x17212b, windowWidth: 1.9,
+      floorHeight: 3.3, windowRatioX: 0.4, windowRatioY: 0.66, litProbability: 0.55, warmth: 0.9, stucco: 1, seed: 83.4, dado: 1,
+      dadoColors: [0x2e6a4a, 0xeceae2], persianaColors: [0x3f6a52, 0x7a5f40, 0x4d6f8a], persianaSlats: 12 }],
+    // 11: Cabanyal tiled front: pale blue-white over a blue-and-white dado
+    [createPreWarBuildingMaterial, { ...VLC, stoneColor: 0xc3d0dd, trimColor: 0xf2f0ea, windowGlassColor: 0x17212b, windowWidth: 1.9,
+      floorHeight: 3.3, windowRatioX: 0.4, windowRatioY: 0.66, litProbability: 0.55, warmth: 0.9, stucco: 1, seed: 88.7, dado: 1,
+      dadoColors: [0x2c4f86, 0xeceae2], persianaColors: [0x3f6a52, 0x7a5f40, 0x4d6f8a], persianaSlats: 12 }]
   ];
+  const GLASS = new Set([3, 4, 5]);
+  const CORNICED = new Set([0, 1, 2, 6, 9]);
   const materials = facades.map(([create, opts]) => create({ ...opts, boxLocal: true }));
   // Storey height of each facade: buildings are massed in whole storeys so every window row lines up across tiers
   const storeys = facades.map(([, opts]) => opts.floorHeight);
@@ -511,8 +494,8 @@ function buildCityBlocks(scene) {
 
   /**
    * Emits building `b`: facade boxes, map footprints, colliders matching each part, stone cornices
-   * under every masonry roof line, rooftop bulkhead & water tower, fire escapes and avenue storefront awnings.
-   * o: { cornice, corniceH, roof: 'mech' | 'prewar' | 'walkup' | 'none', wtP, hvacH, fireEscapes, rearFireEscapes,
+   * under every masonry roof line, rooftop bulkhead & water tower and avenue storefront awnings.
+   * o: { cornice, corniceH, roof: 'mech' | 'prewar' | 'walkup' | 'none', wtP, hvacH,
    *      awnings, shops: 'all' | 'avenue' | 'none' | probability of 'all' (street fronts with storefronts on the
    *      ground floor, the others get a residential entrance), freestanding, walls (see wallKinds) }
    */
@@ -592,34 +575,6 @@ function buildCityBlocks(scene) {
             h: o.hvacH ?? (big ? range(3.4, 5.8) : range(2.4, 3.2)),
             d: hd
           });
-        }
-      }
-    }
-
-    // 3. Wrought-iron fire escapes on walk-up street fronts (and over the rear yards)
-    if (o.fireEscapes) {
-      for (const p of parts) {
-        if (p.y0 > EPS) continue;
-        const nf = Math.round(p.y1 / storey);
-        const w = p.x1 - p.x0;
-        if (nf < 3 || w < 4.6) continue;
-        // A landing per floor from the 2nd up, aligned with this facade's floor spacing.
-        const landings = Math.min(nf - 1, 7);
-        const h = (landings - 1) * storey + 1;
-        for (const side of ['n', 's']) {
-          const front = side === 'n' ? p.z0 - blk.minZ < EPS : blk.maxZ - p.z1 < EPS;
-          if (!front) {
-            const gap = side === 'n' ? p.z0 - b.lot.z0 : b.lot.z1 - p.z1;
-            if (!o.rearFireEscapes || gap < 1.2 || corniceReach(b, p, side, 1) <= 0) continue;
-          }
-          const z = side === 'n' ? p.z0 - 0.55 : p.z1 + 0.55;
-          const count = w >= 15 ? 2 : 1;
-          for (let k = 0; k < count; k++) {
-            blk.fireEscapes.push({
-              x: p.x0 + (w * (k + 0.5)) / count, y: storey + 0.1, z, h, storey, landings,
-              facing: side === 'n' ? Math.PI : 0
-            });
-          }
         }
       }
     }
@@ -712,7 +667,7 @@ function buildCityBlocks(scene) {
       mass(b, carve(foot, holes, axis), fl, c);
       fl = c;
     });
-    commit(blk, b, { roof: 'walkup', wtP: cfg.wtP, fireEscapes: chance(cfg.feP) });
+    commit(blk, b, { roof: 'walkup', wtP: cfg.wtP });
   }
 
   // Loft block (SoHo, Tribeca, NoHo, Garment District, Chelsea, Flatiron): full lot coverage, corner lofts through to
@@ -1039,7 +994,7 @@ function buildCityBlocks(scene) {
   const SANTS = { ...CASC, floors: [5, 7], lotW: [8, 15], mats: [[1, 5], [0, 4], [2, 2]], atticP: 0.35, shops: 0.65 };
   const EIXAMPLE_IRREGULAR = { ...CASC, floors: [6, 8], lotW: [12, 19], mats: ILLA.mats, atticP: 0.45, shops: 0.85 };
   // Poblenou: old factories & lofts in brick, 22@'s new offices in glass
-  const LOFT = { kind: 'loft', lotW: [12, 28], throughP: 0.55, floors: [3, 7], mats: [[2, 6], [1, 3], [0, 1]], setbackAt: 99, wtP: 0, feP: 0 };
+  const LOFT = { kind: 'loft', lotW: [12, 28], throughP: 0.55, floors: [3, 7], mats: [[2, 6], [1, 3], [0, 1]], setbackAt: 99, wtP: 0 };
   const OFFICE = {
     kind: 'office',
     plans: [['pair', 3], ['major', 3], ['full', 2], ['plaza', 1.5]],
@@ -1077,7 +1032,7 @@ function buildCityBlocks(scene) {
 
   /**
    * Populates a single block with lots and buildings for its neighbourhood and registers its high-detail
-   * architectural features (stone cornices, water towers, rooftop bulkheads, fire escapes, awnings, storefront
+   * architectural features (stone cornices, water towers, rooftop bulkheads, awnings, storefront
    * fascia signs, and scaffolding sheds) into the Quadtree.
    */
   function populateBlock(minX, maxX, minZ, maxZ, district = 'eixample', illa = null) {
@@ -1100,7 +1055,6 @@ function buildCityBlocks(scene) {
       cornices: [],
       waterTowers: [],
       hvacUnits: [],
-      fireEscapes: [],
       awnings: [],
       scaffoldSheds: [],
       footprints: [], // { x0, x1, z0, z1, h, tone } per building part, lowest first (maps; + pts: its world corners when turned)
@@ -1131,7 +1085,7 @@ function buildCityBlocks(scene) {
     allBlocks.push(blockDetail);
   }
 
-  // Turns everything a lot of the current frame emitted into place: facade boxes, roof gear, cornices, fire escapes,
+  // Turns everything a lot of the current frame emitted into place: facade boxes, roof gear, cornices,
   // awnings & sheds get the frame's turn (ry) about their own centre, map footprints their world corners, the block
   // its world centre (streaming) & bounds
   function placeInFrame(blk, marks) {
@@ -1143,7 +1097,7 @@ function buildCityBlocks(scene) {
         b.ry = th;
       }
     });
-    for (const list of [blk.cornices, blk.waterTowers, blk.hvacUnits, blk.fireEscapes, blk.awnings, blk.scaffoldSheds]) {
+    for (const list of [blk.cornices, blk.waterTowers, blk.hvacUnits, blk.awnings, blk.scaffoldSheds, blk.roofs || [], blk.roofHouses || []]) {
       for (const o of list) {
         [o.x, o.z] = toWorld(o.x, o.z);
         o.ry = th;
@@ -1178,12 +1132,16 @@ function buildCityBlocks(scene) {
   // generic buildings, which fill the rest of their blocks
   // ============================================================================
   const LANDMARK_RESERVE = [
-    ['Basílica de la Sagrada Família', 22], ['Casa Batlló', 1], ['Casa Milà', 1], ['Torre Glòries', 6], ['W Barcelona', 6],
-    ['Catedral de la Santa Creu i Santa Eulàlia', 3], ['Basílica de Santa Maria del Mar', 2], ['Gran Teatre del Liceu', 1],
-    ['Palau de la Música Catalana', 1], ['Hotel Arts', 8], ['Torre Mapfre', 8], ['Arc de Triomf', 4], ['Casa Amatller', 1]
+    ['Catedral de València', 2], ['el Micalet', 2], ['Torres dels Serrans', 3], ['Torres de Quart', 3], ['Llotja de la Seda', 1],
+    ['Mercat Central', 2], ['Estació del Nord', 1], ['Plaça de Bous de València', 3], ["L'Hemisfèric", 8],
+    ['Palau de les Arts Reina Sofia', 10], ['Museu de les Ciències «Príncep Felip»', 6], ["L'Umbracle", 4], ['Mestalla', 4],
+    ['Torre de Francia', 3], ['Veles e Vents', 4], ['Basílica de la Mare de Déu dels Desemparats', 1], ['Mercat de Colón', 1],
+    ['Edifici de Correus i Telègrafs', 1], ['Mercat de Russafa', 1]
   ].map(([name, m]) => {
     const t = LANDMARK_SITES[name];
     if (!t) return null;
+    const c = LANDMARK_CIRCLES[name]; // a round landmark reserves its circle's box, not its outline's
+    if (c) return { x0: c.x - c.r - m, x1: c.x + c.r + m, z0: c.z - c.r - m, z1: c.z + c.r + m };
     return { x0: t.x - t.w / 2 - m, x1: t.x + t.w / 2 + m, z0: t.z - t.d / 2 - m, z1: t.z + t.d / 2 + m };
   }).filter(Boolean);
   const hitR = (a, x0, x1, z0, z1) => a.x0 < x1 && a.x1 > x0 && a.z0 < z1 && a.z1 > z0;
@@ -1243,7 +1201,9 @@ function buildCityBlocks(scene) {
   // onto the chamfer
   const XAMFRANS = [[-1, -1, Math.PI / 4], [1, -1, -Math.PI / 4], [-1, 1, (3 * Math.PI) / 4], [1, 1, (-3 * Math.PI) / 4]];
   const CORNER_DEPTH = 16;
-  for (const b of BLOCKS) {
+  // With València's real buildings (vlc-buildings.js) the generated lots stand down: section A2 builds every Catastro
+  // building at its LiDAR height instead
+  for (const b of REAL_BUILDINGS ? [] : BLOCKS) {
     if (b.park > 0.6 || b.median) continue;
     blockStoreys = b.storeys[0];
     if (b.illa && !overlapsLandmark(b.illa[0], b.illa[1], b.illa[2], b.illa[3])) {
@@ -1284,6 +1244,143 @@ function buildCityBlocks(scene) {
     }
   }
   minLot = 15;
+
+  // ============================================================================
+  // A2. VALÈNCIA'S REAL BUILDINGS (vlc-buildings.js): every Catastro building in its own frame (turned to its
+  //     footprint's long axis), each part as boxes at its PNOA-LiDAR height, walls classed offline as street fronts,
+  //     party walls or patio walls. Cornices under masonry roof lines, a stair / lift house on the main roof.
+  // ============================================================================
+  function populateReal(i) {
+    const R = REAL_BUILDINGS;
+    const px = R.frames[i * 3], pz = R.frames[i * 3 + 1], th = R.frames[i * 3 + 2];
+    const tone = R.meta[i * 4 + 1] / 255;
+    const decade = R.meta[i * 4 + 2];
+    const year = decade ? (decade + 150) * 10 : 0;
+    const b0 = realBoxStart[i], n = R.counts[i];
+    let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
+    for (let k = b0; k < b0 + n; k++) {
+      minX = Math.min(minX, px + R.boxes[k * 5] / 10); maxX = Math.max(maxX, px + R.boxes[k * 5 + 1] / 10);
+      minZ = Math.min(minZ, pz + R.boxes[k * 5 + 2] / 10); maxZ = Math.max(maxZ, pz + R.boxes[k * 5 + 3] / 10);
+    }
+    // landmarks.js builds on these lots
+    const r = Math.hypot(maxX - minX, maxZ - minZ) * 0.5;
+    if (LANDMARK_RESERVE.some((h) => px > h.x0 - 1 && px < h.x1 + 1 && pz > h.z0 - 1 && pz < h.z1 + 1)) return;
+    xf = { th, cs: Math.cos(th), sn: Math.sin(th), px, pz };
+    const district = districtAt(px, pz);
+    let topH = 0;
+    for (let k = b0; k < b0 + n; k++) topH = Math.max(topH, R.boxes[k * 5 + 4] / 10);
+    const mat = realMaterial(year, district, topH, tone);
+    // balconies, persianes & ground floor by era (vlc-balconies.js facadeStyle), one style per building
+    const style = facadeStyle(mat, year, Math.round(topH / storeys[mat]), ((tone * 977.31 + i * 0.6180339) % 1));
+    // graffiti on the ground floor's shutters & render by barri and age (gap #11), in the phase's fraction
+    style[1] += graffitiLevel(barriAt(px, pz).name, year, mat);
+    const blockDetail = {
+      id: `real_${i}`, cx: (minX + maxX) * 0.5, cz: (minZ + maxZ) * 0.5, minX, maxX, minZ, maxZ, district, illa: null,
+      cornices: [], waterTowers: [], hvacUnits: [], awnings: [], scaffoldSheds: [], footprints: [], yards: [],
+      maxH: 0, avenueFronts: { w: [], e: [] }, real: true, radius: r, roofs: [], roofHouses: [], items: []
+    };
+    const bucketMarks = buckets.map((items) => items.length);
+    rand = mulberry32((Math.imul(Math.round(px * 4), 73856093) ^ Math.imul(Math.round(pz * 4), 19349663) ^ 10019) >>> 0);
+    let top = null;
+    for (let k = b0; k < b0 + n; k++) {
+      const x0 = px + R.boxes[k * 5] / 10, x1 = px + R.boxes[k * 5 + 1] / 10;
+      const z0 = pz + R.boxes[k * 5 + 2] / 10, z1 = pz + R.boxes[k * 5 + 3] / 10;
+      const h = Math.max(2.5, R.boxes[k * 5 + 4] / 10);
+      const f = R.faces[k];
+      const faces = [f & 3, (f >> 2) & 3, (f >> 4) & 3, (f >> 6) & 3];
+      const w = x1 - x0, d = z1 - z0;
+      let roof;
+      if (R.roofRGB && (R.roofRGB[k * 3] | R.roofRGB[k * 3 + 1] | R.roofRGB[k * 3 + 2])) {
+        roofColor.setRGB(R.roofRGB[k * 3] / 255, R.roofRGB[k * 3 + 1] / 255, R.roofRGB[k * 3 + 2] / 255, THREE.SRGBColorSpace);
+        roof = [roofColor.r, roofColor.g, roofColor.b];
+      }
+      const item = { x: x0 + w * 0.5, y: h * 0.5, z: z0 + d * 0.5, w, h, d, faces, tone, roof, style, mat, year, fh: storeys[mat] };
+      buckets[mat].push(item);
+      blockDetail.items.push(item);
+      blockDetail.footprints.push({ x0, x1, z0, z1, h, tone });
+      // every box (signs must stand clear of them) & its street fronts (shopfront or residential entrance) at least
+      // a shop wide, for shop-signs.js
+      {
+        const [cx, cz] = toWorld(x0 + w * 0.5, z0 + d * 0.5);
+        realBoxes.push({ cx, cz, hx: w * 0.5, hz: d * 0.5, cs: xf.cs, sn: xf.sn, item });
+      }
+      for (let side = 0; side < 4; side++) {
+        if (faces[side] > WALL_KINDS.entry) continue;
+        const [ax, az, bx, bz, nx, nz] = side === 0 ? [x0, z1, x0, z0, -1, 0] : side === 1 ? [x1, z0, x1, z1, 1, 0]
+          : side === 2 ? [x0, z0, x1, z0, 0, -1] : [x1, z1, x0, z1, 0, 1];
+        if (Math.hypot(bx - ax, bz - az) < 2.4) continue;
+        const [wax, waz] = toWorld(ax, az), [wbx, wbz] = toWorld(bx, bz);
+        streetWalls.push({
+          id: streetWalls.length, ax: wax, az: waz, bx: wbx, bz: wbz,
+          nx: nx * xf.cs + nz * xf.sn, nz: -nx * xf.sn + nz * xf.cs,
+          storey: storeys[mat], shop: faces[side] === WALL_KINDS.shop, item, side
+        });
+      }
+      if (h > blockDetail.maxH) blockDetail.maxH = h;
+      pushCollider(x0, x1, z0, z1, 0, h);
+      // cornice under masonry roof lines, reaching out only over open walls (not along party walls)
+      if (CORNICED.has(mat) && h > 7) {
+        const oh = (kind) => (kind === WALL_KINDS.lotLine ? -0.03 : 0.45);
+        const cx0 = x0 - oh(faces[0]), cx1 = x1 + oh(faces[1]), cz0 = z0 - oh(faces[2]), cz1 = z1 + oh(faces[3]);
+        blockDetail.cornices.push({ x: (cx0 + cx1) * 0.5, y: h, z: (cz0 + cz1) * 0.5, w: cx1 - cx0, h: mat === 2 ? 0.6 : 0.75, d: cz1 - cz0 });
+      }
+      // a pitched roof (LiDAR gable fit) on its eaves: ridge along the box's x (kind 1) or z (kind 2)
+      const kind = R.roof[k];
+      if (kind) blockDetail.roofs.push({ x: x0 + w * 0.5, y: h, z: z0 + d * 0.5, w, d, rise: R.rise[k] / 10, alongZ: kind === 2 });
+      if (!top || h > top.h + 0.5 || (h > top.h - 0.5 && w * d > top.w * top.d)) top = { x0, x1, z0, z1, h, w, d };
+    }
+    // the stair & lift houses on the roof terraces, where the LiDAR shows them
+    for (let k = realHouseStart[i], e = k + R.houseCounts[i]; k < e; k++) {
+      const hx0 = px + R.houses[k * 6] / 10, hx1 = px + R.houses[k * 6 + 1] / 10;
+      const hz0 = pz + R.houses[k * 6 + 2] / 10, hz1 = pz + R.houses[k * 6 + 3] / 10;
+      const hy0 = R.houses[k * 6 + 4] / 10, hh = R.houses[k * 6 + 5] / 10;
+      if (hx1 - hx0 < 1 || hz1 - hz0 < 1 || hh < 1) continue;
+      blockDetail.roofHouses.push({ x: (hx0 + hx1) * 0.5, y: hy0, z: (hz0 + hz1) * 0.5, w: hx1 - hx0, h: hh, d: hz1 - hz0 });
+      pushCollider(hx0, hx1, hz0, hz1, hy0, hy0 + hh);
+    }
+    blockDetail.footprints.sort((a, b) => a.h - b.h);
+    placeInFrame(blockDetail, bucketMarks);
+    quadtree.insert(blockDetail);
+    allBlocks.push(blockDetail);
+    xf = null;
+  }
+  // Facade by era (Catastro construction year), neighbourhood & height: the old town's coloured render, the Ensanche's
+  // cream stone, interwar grey render, the 1960s-70s brick boom, white modern render, glass towers, tiled fishermen's
+  // houses by the sea
+  const OLD_TOWN = new Set(['gotic', 'raval', 'born']);
+  function realMaterial(year, district, top, t) {
+    if (top > 45 && year >= 1990) return t < 0.5 ? 5 : 3;
+    if (district === 'barceloneta' && top < 14) return t < 0.55 ? 10 : 11;
+    if (OLD_TOWN.has(district) || (year && year < 1900)) return t < 0.42 ? 1 : t < 0.78 ? 2 : t < 0.88 ? 6 : 0;
+    if (year >= 1900 && year < 1940) return t < 0.7 ? 0 : t < 0.85 ? 9 : 1;
+    if (year >= 1940 && year < 1960) return t < 0.5 ? 9 : t < 0.8 ? 7 : 0;
+    if (year >= 1960 && year < 1985) return t < 0.65 ? 7 : t < 0.85 ? 8 : 9;
+    if (year >= 1985) return t < 0.6 ? 8 : t < 0.8 ? 0 : 7;
+    return district === 'eixample' ? 0 : 7;
+  }
+  const roofColor = new THREE.Color();
+  const realBoxStart = [];
+  const streetWalls = [];
+  const realBoxes = [];
+  const realHouseStart = [];
+  if (REAL_BUILDINGS) {
+    let k = 0, h = 0;
+    for (let i = 0; i < REAL_BUILDINGS.count; i++) {
+      realBoxStart.push(k);
+      realHouseStart.push(h);
+      k += REAL_BUILDINGS.counts[i];
+      h += REAL_BUILDINGS.houseCounts[i];
+    }
+    for (let i = 0; i < REAL_BUILDINGS.count; i++) populateReal(i);
+    // shop signs where OpenStreetMap has shops; their walls become shopfronts (glazed ground floor)
+    const signs = planShopSigns(streetWalls, realBoxes);
+    for (const id of signs.used) {
+      const w = streetWalls[id];
+      w.item.faces[w.side] = WALL_KINDS.shop;
+    }
+    group.add(signs.group);
+    console.log(`[buildings] ${REAL_BUILDINGS.count} real buildings (${REAL_BUILDINGS.boxCount} boxes) from Catastro & PNOA-LiDAR`);
+  }
 
   // B6. Narrow leftover slabs no building fits on (8-26 m wide: clipped short by the shore or cut by a diagonal street)
   //     become sitting areas: a row or two of honey locusts & planes in tree pits (planted by street-details.js)
@@ -1335,6 +1432,57 @@ function buildCityBlocks(scene) {
   // Rear yards, light courts & project lawns: one thin slab per patch just above the sidewalk (buildings standing on
   // it hide the rest). Lawn, paving and tree canopies come from world-space noise; detail finer than a pixel fades
   // to its average so the gardens don't shimmer from the air
+  // ============================================================================
+  // C2. ROOFS OF THE REAL BUILDINGS (static, seen from every distance): Arab-tile gables where the LiDAR finds a
+  //     pitched roof, and the rendered stair / lift houses standing on the flat terraces
+  // ============================================================================
+  if (REAL_BUILDINGS) {
+    const roofs = allBlocks.flatMap((b) => (b.roofs || []).map((r) => ({ ...r, ry: (b.ry || 0) + (r.alongZ ? Math.PI / 2 : 0) })));
+    if (roofs.length) {
+      // unit gable prism: base [-0.5, 0.5]² at y 0, ridge along x at y 1; `gableEnd` marks the two end triangles
+      const P = [[-0.5, 0, -0.5], [0.5, 0, -0.5], [0.5, 1, 0], [-0.5, 1, 0], [-0.5, 0, 0.5], [0.5, 0, 0.5]];
+      const tris = [[0, 3, 2], [0, 2, 1], [4, 5, 2], [4, 2, 3], [0, 4, 3], [1, 2, 5]];
+      const pos = [], end = [];
+      tris.forEach((t, ti) => t.forEach((v) => { pos.push(...P[v]); end.push(ti >= 4 ? 1 : 0); }));
+      const prism = new THREE.BufferGeometry();
+      prism.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+      prism.setAttribute('gableEnd', new THREE.Float32BufferAttribute(end, 1));
+      prism.computeVertexNormals();
+      const tileMat = new THREE.MeshStandardNodeMaterial({ roughness: 0.82, metalness: 0.0 });
+      tileMat.colorNode = Fn(() => {
+        // weathered Arab tile: courses of barrel tiles down the slope, mottled; the end gables are the wall's render
+        const p = positionWorld;
+        const courses = fract(p.x.add(p.z).mul(2.2)).sub(0.5).abs().mul(2.0);
+        const mottle = mx_noise_float(p.xz.mul(0.6)).mul(0.5).add(0.5);
+        const tile = mix(color(0x9a4a2e), color(0xbd6a43), mottle).mul(mix(float(0.82), float(1.0), smoothstep(0.0, 0.6, courses)));
+        return mix(tile, color(0xd8cbb2), attribute('gableEnd', 'float'));
+      })();
+      const roofInst = new THREE.InstancedMesh(prism, tileMat, roofs.length);
+      const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0), v = new THREE.Vector3(), sc = new THREE.Vector3();
+      roofs.forEach((r, i) => {
+        q.setFromAxisAngle(up, r.ry);
+        roofInst.setMatrixAt(i, m4.compose(v.set(r.x, r.y, r.z), q, r.alongZ ? sc.set(r.d, r.rise, r.w) : sc.set(r.w, r.rise, r.d)));
+      });
+      roofInst.castShadow = roofInst.receiveShadow = true;
+      roofInst.name = 'RealRoofs';
+      group.add(roofInst);
+    }
+    const houses = allBlocks.flatMap((b) => (b.roofHouses || []).map((h) => ({ ...h, ry: b.ry || 0 })));
+    if (houses.length) {
+      const renderMat = new THREE.MeshStandardNodeMaterial({ color: 0xd9d1c2, roughness: 0.9, metalness: 0.0 });
+      const houseInst = new THREE.InstancedMesh(unitBox, renderMat, houses.length);
+      const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0), v = new THREE.Vector3(), sc = new THREE.Vector3();
+      houses.forEach((h, i) => {
+        q.setFromAxisAngle(up, h.ry);
+        houseInst.setMatrixAt(i, m4.compose(v.set(h.x, h.y + h.h * 0.5, h.z), q, sc.set(h.w, h.h, h.d)));
+      });
+      houseInst.castShadow = houseInst.receiveShadow = true;
+      houseInst.name = 'RoofHouses';
+      group.add(houseInst);
+    }
+    console.log(`[buildings] ${roofs.length} pitched roofs, ${houses.length} roof houses from PNOA-LiDAR`);
+  }
+
   const yardMat = new THREE.MeshStandardNodeMaterial({ roughness: 0.94, metalness: 0.0 });
   yardMat.colorNode = Fn(() => {
     const p = positionWorld.xz;
@@ -1479,10 +1627,50 @@ function buildCityBlocks(scene) {
   hvacInst.frustumCulled = false;
   group.add(hvacInst);
 
-  // 4. Instanced fire escapes: real steps nearby, lightweight silhouettes in the distance.
-  const fireEscapeSystem = createFireEscapes(group);
+  // 4. València's wrought-iron balconies (vlc-balconies.js), out to FACADE_DETAIL_LOD (New York's fire escapes are gone)
+  const balconySystem = createBalconies(group, facades.map(([, o]) => ({ windowWidth: o.windowWidth, floorHeight: o.floorHeight, windowRatioX: o.windowRatioX ?? 0.5 })));
+  // 4b. Overhead cables along the older fronts & across the street (vlc-cables.js, gap #11). `opposite` finds the
+  //     street front across the street from a wall point: the nearest street wall hit by the ray out of it (a 20 m
+  //     grid of the street walls, built on first use), facing back
+  let wallGrid = null;
+  function opposite(x, z, nx, nz) {
+    if (!wallGrid) {
+      wallGrid = new Map();
+      for (const w of streetWalls) {
+        const k0 = Math.floor(Math.min(w.ax, w.bx) / 20), k1 = Math.floor(Math.max(w.ax, w.bx) / 20);
+        const j0 = Math.floor(Math.min(w.az, w.bz) / 20), j1 = Math.floor(Math.max(w.az, w.bz) / 20);
+        for (let k = k0; k <= k1; k++) for (let j = j0; j <= j1; j++) {
+          const key = k * 100003 + j;
+          if (!wallGrid.has(key)) wallGrid.set(key, []);
+          wallGrid.get(key).push(w);
+        }
+      }
+    }
+    let best = null, bt = 26;
+    const seen = new Set();
+    for (let t = 3; t <= 26; t += 10) {
+      const k = Math.floor((x + nx * t) / 20), j = Math.floor((z + nz * t) / 20);
+      for (let dk = -1; dk <= 1; dk++) for (let dj = -1; dj <= 1; dj++) {
+        for (const w of wallGrid.get((k + dk) * 100003 + j + dj) || []) {
+          if (seen.has(w) || w.nx * nx + w.nz * nz > -0.6) continue;
+          seen.add(w);
+          // ray (x, z) + s (nx, nz) against the segment a-b
+          const ex = w.bx - w.ax, ez = w.bz - w.az;
+          const den = nx * ez - nz * ex;
+          if (Math.abs(den) < 1e-6) continue;
+          const s = ((w.ax - x) * ez - (w.az - z) * ex) / den;
+          const u = ((w.ax - x) * nz - (w.az - z) * nx) / den;
+          if (s > 3 && s < bt && u > 0.05 && u < 0.95) { bt = s; best = { x: x + nx * s + w.nx * 0.07, z: z + nz * s + w.nz * 0.07, h: w.item.h }; }
+        }
+      }
+    }
+    return best;
+  }
+  const cableSystem = createCables(group, opposite);
+  // 4c. The mapped fences & railings (OpenStreetMap, vlc-fence-mesh.js): static, chunked by scene-culling.js
+  group.add(createFences());
 
-  // 5. Ground-floor retail canvas awnings & illuminated storefront fascia signs
+  // 5. Ground-floor retail canvas awnings (generated lots only; real buildings get shop-signs.js)
   const awningMat = new THREE.MeshStandardNodeMaterial({ color: 0xffffff, roughness: 0.65 });
   const awningPalette = [
     new THREE.Color(0x9e222e),
@@ -1500,39 +1688,6 @@ function buildCityBlocks(scene) {
   }
   group.add(awningInst);
 
-  const signThemes = [
-    { bg: '#161210', border: '#c89d54', text: 'BAR CELONA · TAPES · VERMUT', color: '#ffe4a8' },
-    { bg: '#0f5a2e', border: '#7ee08f', text: 'FARMÀCIA · FARMACIA', color: '#ffffff' },
-    { bg: '#142b20', border: '#d4af37', text: 'LLIBRERIA & CAFÈ', color: '#fff2cc' },
-    { bg: '#280a10', border: '#ff5252', text: 'FORN DE PA · PASTISSERIA', color: '#ffd180' },
-    { bg: '#101318', border: '#e0e6ed', text: 'QUEVIURES · FRUITA I VERDURA', color: '#f5f9ff' }
-  ];
-  const MAX_SIGNS_PER_THEME = Math.ceil(MAX_AWNINGS / signThemes.length) + 32;
-  const signInsts = signThemes.map((st) => {
-    const c = document.createElement('canvas');
-    c.width = 512;
-    c.height = 96;
-    const ctx = c.getContext('2d');
-    ctx.fillStyle = st.bg;
-    ctx.fillRect(0, 0, 512, 96);
-    ctx.strokeStyle = st.border;
-    ctx.lineWidth = 6;
-    ctx.strokeRect(6, 6, 500, 84);
-    ctx.fillStyle = st.color;
-    ctx.font = '800 26px Inter, Arial, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(st.text, 256, 50);
-
-    const tex = new THREE.CanvasTexture(c);
-    tex.colorSpace = THREE.SRGBColorSpace;
-    const sMat = new THREE.MeshBasicNodeMaterial({ map: tex });
-    const sInst = new THREE.InstancedMesh(unitBox, sMat, MAX_SIGNS_PER_THEME);
-    sInst.frustumCulled = false;
-    group.add(sInst);
-    return sInst;
-  });
-
   // 6. Sidewalk construction scaffolding sheds
   const shedMat = new THREE.MeshStandardNodeMaterial({ color: 0x214f37, roughness: 0.6, metalness: 0.25 });
   const shedInst = new THREE.InstancedMesh(unitBox, shedMat, MAX_SHEDS);
@@ -1540,17 +1695,17 @@ function buildCityBlocks(scene) {
   shedInst.frustumCulled = false;
   group.add(shedInst);
 
-  // 7. Ground-floor storefront clustered SpotLights (awnings/fascia signs)
+  // 7. Ground-floor storefront clustered SpotLights (under the awnings)
   const storeLightGroup = new THREE.Group();
   storeLightGroup.name = 'StoreClusteredLights';
   scene.add(storeLightGroup);
 
   const storeThemeColors = [
-    new THREE.Color(0xffd896), // Bistro warm gold
-    new THREE.Color(0xd8eeff), // Pharmacy crisp cool white
-    new THREE.Color(0xffe4ad), // Bookstore warm amber
-    new THREE.Color(0xffbe88), // 24hr Deli warm orange-gold
-    new THREE.Color(0xfff2d6)  // Watch boutique warm ivory
+    new THREE.Color(0xffd896), // warm gold
+    new THREE.Color(0xd8eeff), // cool white
+    new THREE.Color(0xffe4ad), // warm amber
+    new THREE.Color(0xffbe88), // orange-gold
+    new THREE.Color(0xfff2d6)  // ivory
   ];
 
   const STORE_SPOT_POOL = 28;
@@ -1606,10 +1761,10 @@ function buildCityBlocks(scene) {
     let corniceCount = 0;
     let wtCount = 0;
     let hvacCount = 0;
-    fireEscapeSystem.begin();
+    balconySystem.begin();
+    cableSystem.begin();
     let awningCount = 0;
     let shedCount = 0;
-    const signCounts = signInsts.map(() => 0);
 
     for (let bIdx = 0; bIdx < nearbyBlocks.length; bIdx++) {
       const blk = nearbyBlocks[bIdx];
@@ -1655,10 +1810,11 @@ function buildCityBlocks(scene) {
         hvacInst.setMatrixAt(hvacCount++, dummy.matrix);
       }
 
-      // 4. Wrought-iron fire escapes
-      for (const fe of blk.fireEscapes) fireEscapeSystem.add(fe, focusX, focusZ);
+      // 4. Balconies
+      balconySystem.addBlock(blk, focusX, focusZ);
+      cableSystem.addBlock(blk, focusX, focusZ);
 
-      // 5. Retail awnings & illuminated storefront fascia signs
+      // 5. Retail awnings
       for (let i = 0; i < blk.awnings.length && awningCount < MAX_AWNINGS; i++) {
         const a = blk.awnings[i];
         dummy.position.set(a.x, a.y, a.z);
@@ -1667,15 +1823,8 @@ function buildCityBlocks(scene) {
         awningInst.setMatrixAt(awningCount, dummy.matrix);
         awningInst.setColorAt(awningCount, awningPalette[a.colorIdx % awningPalette.length]);
 
-        const themeIdx = awningCount % signInsts.length;
-        if (signCounts[themeIdx] < MAX_SIGNS_PER_THEME) {
-          dummy.position.set(a.x, 4.68, a.z);
-          dummy.scale.set(0.28, 0.86, a.d * 0.92);
-          dummy.updateMatrix();
-          signInsts[themeIdx].setMatrixAt(signCounts[themeIdx]++, dummy.matrix);
-        }
         if (collectNearLights) {
-          activeAwnings.push({ a, themeIdx, ry: blk.ry || 0 });
+          activeAwnings.push({ a, themeIdx: a.colorIdx, ry: blk.ry || 0 });
         }
         awningCount++;
       }
@@ -1704,16 +1853,12 @@ function buildCityBlocks(scene) {
     hvacInst.count = hvacCount;
     flagRange(hvacInst.instanceMatrix, hvacCount);
 
-    fireEscapeSystem.end();
+    balconySystem.end();
+    cableSystem.end();
 
     awningInst.count = awningCount;
     flagRange(awningInst.instanceMatrix, awningCount);
     if (awningInst.instanceColor) flagRange(awningInst.instanceColor, awningCount);
-
-    signInsts.forEach((sInst, idx) => {
-      sInst.count = signCounts[idx];
-      flagRange(sInst.instanceMatrix, signCounts[idx]);
-    });
 
     shedInst.count = shedCount;
     flagRange(shedInst.instanceMatrix, shedCount);

@@ -1,9 +1,9 @@
-// Shared data loading, coordinate frame and geometry helpers for the Barcelona geodata generator.
+// Shared data loading, coordinate frame and geometry helpers for the València geodata generator.
 // Source: OpenStreetMap (tools/data/bcn_*.json, written by tools/bcn-extract.py from a .osm.pbf).
 //
-// Frame: 1 unit = 1 m, x = Eixample-grid "east" (along Carrer d'Aragó toward the Besòs), z = grid "south" (down
-// Passeig de Gràcia toward the sea), so north = -z is up toward Collserola. Origin at the centre of Plaça de Catalunya;
-// the axes are turned to the Cerdà grid's measured bearing (≈ 45° from true north).
+// Frame: 1 unit = 1 m, x = Ensanche-grid "east" (along Ciril Amorós & Cadis, roughly toward the sea), z = grid
+// "south" (along the Gran Via del Marqués del Túria toward Russafa), so north = -z is toward the Turia & Benimaclet.
+// Origin at Plaça de l'Ajuntament; the axes are turned to the Ensanche grid's measured bearing (≈ 29° west of north).
 //
 // Run tools/build-bcn-geodata.mjs to generate js/bcn-geodata.js.
 
@@ -18,8 +18,8 @@ const log = (...a) => console.log('[geodata]', ...a);
 // =====================================================================================================================
 // 1. FRAME
 // =====================================================================================================================
-const LAT0 = 41.38703; // Plaça de Catalunya, centre of the square
-const LON0 = 2.17005;
+const LAT0 = 39.46975; // Plaça de l'Ajuntament, centre of the square
+const LON0 = -0.37639;
 const A = 6378137.0;
 const E2 = 6.69437999014e-3;
 const PHI0 = (LAT0 * Math.PI) / 180;
@@ -28,7 +28,7 @@ const NRAD = A / Math.sqrt(1 - E2 * SIN0 * SIN0);
 const MRAD = (A * (1 - E2)) / Math.pow(1 - E2 * SIN0 * SIN0, 1.5);
 const KX = (Math.PI / 180) * NRAD * Math.cos(PHI0);
 const KY = (Math.PI / 180) * MRAD;
-let THETA = (-44.8 * Math.PI) / 180; // bearing of grid north (up Balmes), refined below from the Eixample streets
+let THETA = (-28.6 * Math.PI) / 180; // bearing of grid north, refined below from the Ensanche streets
 
 const enu = (lon, lat) => [(lon - LON0) * KX, (lat - LAT0) * KY];
 function toWorld(lon, lat) {
@@ -45,9 +45,9 @@ function toLonLat(x, z) {
   return [LON0 + e / KX, LAT0 + n / KY];
 }
 
-// The detailed city: a grid-aligned rectangle from Sants & Plaça d'Espanya to Poblenou, the lower slopes of Gràcia
-// down to the sea (the land inside it, see section 4)
-const DETAIL = { x0: -2900, x1: 3500, z0: -2500, z1: 3200 };
+// The detailed city: a grid-aligned rectangle from Campanar & the Torres de Quart to the Malva-rosa beach, from
+// Benimaclet down past the Ciutat de les Arts i les Ciències to the port (the land inside it, see section 4)
+const DETAIL = { x0: -1500, x1: 5000, z0: -1700, z1: 3500 };
 
 // =====================================================================================================================
 // 2. GEOMETRY HELPERS
@@ -286,12 +286,13 @@ class Raster {
 }
 
 // =====================================================================================================================
-// 3. FRAME CALIBRATION FROM THE EIXAMPLE
+// 3. FRAME CALIBRATION FROM THE ENSANCHE
 // =====================================================================================================================
 const roadsOSM = load('bcn_roads.json').elements;
 {
-  // Bearing: length-weighted median of the long straight pieces of Cerdà's streets, folded onto one quarter turn
-  const CERDA = /^(Carrer d'Aragó|Carrer de València|Carrer de Mallorca|Carrer de Provença|Carrer del Rosselló|Carrer de Còrsega|Carrer del Consell de Cent|Carrer de la Diputació|Carrer de Balmes|Carrer d'Enric Granados|Carrer d'Aribau|Carrer de Muntaner|Carrer de Casanova|Carrer de Villarroel|Carrer de Pau Claris|Carrer de Roger de Llúria|Carrer del Bruc|Carrer de Girona|Carrer de Bailèn|Carrer de Sardenya|Carrer de la Marina)$/;
+  // Bearing: length-weighted median of the long straight pieces of the Ensanche's streets (Pla del Remei & Russafa),
+  // folded onto one quarter turn
+  const CERDA = /^(Gran Via del Marqués del Túria|Gran Via de les Germanies|Carrer de Ciril Amorós|Carrer del Comte de Salvatierra|Carrer del Comte d'Altea|Carrer de Joaquín Costa|Carrer de Cadis|Carrer de Sueca|Carrer de Cuba|Carrer de Puerto Rico|Carrer de Pere III el Gran)$/;
   const angs = [];
   for (const w of roadsOSM) {
     if (!CERDA.test(w.tags.name || '')) continue;
@@ -302,7 +303,7 @@ const roadsOSM = load('bcn_roads.json').elements;
       const L = Math.hypot(e1 - e0, n1 - n0);
       if (L < 30) continue;
       let a = (Math.atan2(e1 - e0, n1 - n0) * 180) / Math.PI; // bearing
-      a = ((a % 90) + 90) % 90; // folded to [0, 90): the grid's bearings modulo a quarter turn sit near 45°
+      a = ((a % 90) + 90) % 90; // folded to [0, 90): the grid's bearings modulo a quarter turn sit near 61°
       angs.push([a, L]);
     }
   }
@@ -312,12 +313,12 @@ const roadsOSM = load('bcn_roads.json').elements;
   for (const [a, L] of angs) {
     acc += L;
     if (acc >= tot / 2) {
-      // grid north points up Balmes (toward Collserola, north-west)
+      // grid north points north-north-west (toward the Turia & Benimaclet)
       THETA = ((a - 90) * Math.PI) / 180;
       break;
     }
   }
-  log(`grid north bearing ${((THETA * 180) / Math.PI).toFixed(3)}° (${angs.length} Eixample pieces)`);
+  log(`grid north bearing ${((THETA * 180) / Math.PI).toFixed(3)}° (${angs.length} Ensanche pieces)`);
 }
 
 // =====================================================================================================================

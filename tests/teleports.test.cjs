@@ -23,13 +23,13 @@ test('every teleport button has a destination on a real roadway inside the city'
   }
 });
 
-test('the Sagrada Família arrives on a street of its own block facing the basilica', () => {
-  const point = TELEPORT_LOCATIONS.sagrada;
-  const basilica = LANDMARK_SITES['Basílica de la Sagrada Família'];
-  const distance = Math.hypot(basilica.x - point.x, basilica.z - point.z);
-  assert.ok(distance > 60 && distance < 220, 'leave space for the towers');
-  const alignment = ((basilica.x - point.x) * Math.sin(point.heading) + (basilica.z - point.z) * Math.cos(point.heading)) / distance;
-  assert.ok(alignment > 0.999, 'face the basilica rather than the neighboring buildings');
+test('the Micalet arrives on the square in front of it, facing the tower', () => {
+  const point = TELEPORT_LOCATIONS.micalet;
+  const tower = LANDMARK_SITES['el Micalet'];
+  const distance = Math.hypot(tower.x - point.x, tower.z - point.z);
+  assert.ok(distance > 60 && distance < 220, 'leave space to see the tower');
+  const alignment = ((tower.x - point.x) * Math.sin(point.heading) + (tower.z - point.z) * Math.cos(point.heading)) / distance;
+  assert.ok(alignment > 0.99, 'face the Micalet rather than the neighbouring buildings');
 });
 
 test('preset and map teleports share arrival resets and mark the resolved landing point', () => {

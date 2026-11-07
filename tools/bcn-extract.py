@@ -1,7 +1,7 @@
-"""Extract the OpenStreetMap layers the Barcelona geodata generator needs from a .osm.pbf into tools/data/bcn_*.json.
+"""Extract the OpenStreetMap layers the València geodata generator needs from a .osm.pbf into tools/data/bcn_*.json.
 
 usage: python3 tools/bcn-extract.py path/to/Barcelona.osm.pbf
-       (needs pyosmium: pip install osmium; the BBBike extract is download.bbbike.org/osm/bbbike/Barcelona/)
+       (needs pyosmium: pip install osmium; Geofabrik's extract is download.geofabrik.de/europe/spain/valencia-latest.osm.pbf)
 
 Outputs (lon/lat, rounded to 1e-7), every feature clipped to the bounding box below by its vertices:
   bcn_roads.json      highway ways (roads, pedestrian streets) with the tags the road graph uses
@@ -10,7 +10,7 @@ Outputs (lon/lat, rounded to 1e-7), every feature clipped to the bounding box be
   bcn_buildings.json  building footprints: [centroid lon, lat, area m², levels | null, height | null, name,
                       bearing of the long side (°), length & width of the oriented bounding box (m)]
   bcn_landmarks.json  named buildings & monuments the landmark builders look up (outline rings)
-  bcn_points.json     street furniture points: metro entrances, traffic signals, Bicing docks, fountains
+  bcn_points.json     street furniture points: metro entrances, traffic signals, Valenbisi docks, fountains
 © OpenStreetMap contributors, ODbL 1.0.
 """
 import json
@@ -20,20 +20,21 @@ import sys
 
 import osmium
 
-BBOX = (41.340, 2.090, 41.445, 2.245)  # lat0, lon0, lat1, lon1: the detailed grid rectangle (tools/bcn-base.mjs) and a margin
+BBOX = (39.420, -0.440, 39.515, -0.300)  # lat0, lon0, lat1, lon1: the detailed rectangle (tools/bcn-base.mjs) and a margin, out to sea past the port
 OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data')
 
 ROAD_TAGS = ('highway', 'name', 'oneway', 'lanes', 'width', 'junction', 'bridge', 'tunnel', 'layer', 'area', 'maxspeed', 'busway', 'cycleway')
 SKIP_HIGHWAYS = {'steps', 'path', 'footway', 'cycleway', 'track', 'bridleway', 'corridor', 'proposed', 'construction',
                  'platform', 'raceway', 'elevator', 'bus_stop', 'services', 'rest_area', 'via_ferrata', 'escape'}
 LANDMARK_NAMES = {
-    'Basílica de la Sagrada Família', 'Casa Batlló', 'Casa Milà', 'La Pedrera', 'Arc de Triomf', 'Torre Glòries',
-    'Monument a Colom', 'Hotel W Barcelona', 'W Barcelona', 'Catedral de Barcelona', 'Catedral de la Santa Creu i Santa Eulàlia',
-    'Basílica de Santa Maria del Mar', 'Palau de la Música Catalana', 'Mercat de Sant Josep de la Boqueria',
-    'Gran Teatre del Liceu', 'Palau Nacional', 'Museu Nacional d\'Art de Catalunya', 'Hotel Arts', 'Torre Mapfre',
-    'Casa Amatller', 'Casa Lleó Morera', 'Universitat de Barcelona', 'Hospital de Sant Pau', 'Recinte Modernista de Sant Pau',
-    'Estació de França', 'Mercat de Santa Caterina', 'Castell dels Tres Dragons', 'Torre de Collserola', 'Las Arenas',
-    'Arenas de Barcelona', 'Mercat de Sant Antoni', 'Edifici Fòrum', 'Font Màgica de Montjuïc', 'Plaça de Catalunya',
+    'Catedral de València', 'el Micalet', 'Torres dels Serrans', 'Torres de Quart', 'Llotja de la Seda', 'Mercat Central',
+    'Mercat de Colón', 'Estació del Nord', 'Plaça de Bous de València', 'Edifici de Correus i Telègrafs', "L'Hemisfèric",
+    'Museu de les Ciències «Príncep Felip»', 'Palau de les Arts Reina Sofia', "L'Umbracle", "Assut de l'Or",
+    'Oceanogràfic de València', 'Mestalla', 'Veles e Vents', 'Torre de Francia', 'Torres Oceanográficas',
+    'Basílica de la Mare de Déu dels Desemparats', 'Palau del Marqués de Dosaigües', 'Torre de Sant Bartomeu',
+    'Palau de la Generalitat Valenciana', "Plaça de l'Ajuntament", 'Porta de la Mar', 'Palau de la Música',
+    "Palau de l'Exposició", 'Museu de Belles Arts de València', 'Plaça de la Reina', 'Plaça de la Mare de Déu',
+    'Mercat de Russafa',
 }
 
 

@@ -355,6 +355,34 @@ const evaluateApartmentInterior = Fn(([uCoord, vCoord, winUV, cellId, winWNode, 
 const WALL_KINDS = { shop: 0, entry: 1, rear: 2, lotLine: 3, blankStone: 4 };
 
 /**
+ * València's balconies (gap #4). A box-local facade box's `style` attribute (createFacadeBoxes) carries its building's
+ * balcony mode in x and phase in y; balconyMask says which window cells of its street fronts open onto a balcony (or
+ * a French railing), and vlc-balconies.js (BALCONY_RULE) builds the 3D balconies in exactly those cells. Modes:
+ * 0 none, 1 every bay of every upper floor, 2 as 1 with one long balcony across the first floor, 3 alternate bays,
+ * 4 every third bay (a column of terraces), 5 French railings flush with every opening, 6 first floor only.
+ * Within FACADE_DETAIL_LOD metres of the camera the 3D balconies stand in front of the wall; beyond it the facade
+ * paints their railings instead.
+ */
+export const FACADE_DETAIL_LOD = 230;
+function balconyMask(mode, phase, bayIdx, fl) {
+  const is = (k) => step(abs(mode.sub(k)), 0.5);
+  const alt = step(mod(bayIdx.add(phase), 2.0), 0.5);
+  const third = step(abs(mod(bayIdx.add(phase), 3.0).sub(1.0)), 0.5);
+  const first = step(abs(fl.sub(1.0)), 0.5);
+  const any = is(1).add(is(2)).add(is(5)).add(is(3).mul(alt)).add(is(4).mul(third)).add(is(6).mul(first));
+  return any.mul(step(0.5, fl)).mul(step(0.0, bayIdx)).clamp(0.0, 1.0);
+}
+
+/**
+ * A box-local facade box's roof in its measured colour (createFacadeBoxes `roofTint`, linear RGB; x < 0 when unknown),
+ * lightly mottled; otherwise the material's own roof
+ */
+function mixRoofTint(fallback, roofNoise) {
+  const tint = attribute('roofTint', 'vec3');
+  return mix(fallback, tint.mul(roofNoise.mul(0.16).add(0.92)), step(0.0, tint.x));
+}
+
+/**
  * Facade cell coordinates shared by the curtain-wall & pre-war materials: wall UV (u runs along whichever horizontal
  * axis the wall faces, v is world height), window cell id/UV, bay width, pixel footprint in cells (`fw`, for
  * filtering) and roof/ground-floor masks.
@@ -460,7 +488,7 @@ function facadeCell(windowWidth, floorHeight, boxLocal, cornerPier = 0) {
   const solid = max(max(inPier.mul(float(1.0).sub(isGroundFloor)), blank), partial);
   return {
     isRoof, uCoord, vCoord, gridV, cellId, cellUV, fw, bayWidth, isGroundFloor, solid, floor0, back, blank, door, tone,
-    wallS, wallW, wallH, fromTop, boxSeed, partial, coping
+    wallS, wallW, wallH, fromTop, boxSeed, partial, coping, bayIdx, bays, entryWall: isEntry.mul(wall)
   };
 }
 
@@ -589,7 +617,8 @@ function createCurtainWallMaterial(opts = {}) {
     const canyonGlow = cCanyonBounce.mul(canyonBand.mul(cityUniforms.uCanyonBounce).mul(0.16));
 
     const roofNoise = noise2D(positionWorld.xz.mul(0.35));
-    const roofColor = mix(color(0x202429), color(0x3b4149), roofNoise);
+    let roofColor = mix(color(0x202429), color(0x3b4149), roofNoise);
+    if (boxLocal) roofColor = mixRoofTint(roofColor, roofNoise);
 
     const facadeCol = mix(frameBase, glassColor, isGlassPane.mul(float(1.0).sub(isMechFloor))).add(canyonGlow);
     const mechCol = mix(cFrame.mul(0.36), cFrame.mul(0.76), louverStripes);
@@ -683,10 +712,27 @@ function createPreWarBuildingMaterial(opts = {}) {
     seed = 42.0,
     stucco = 0.0, // 0: brick & ashlar coursing on the street fronts, 1: smooth render (stucco) with no joints
     boxLocal = false,
-    cornerPier = 1.2 // solid masonry at both ends of every wall above the shopfronts (box-local mode)
+    cornerPier = 1.2, // solid masonry at both ends of every wall above the shopfronts (box-local mode)
+    // Rear & lot-line walls: two common-brick tones and two buff tones, picked by building (default: New York's
+    // red-brown & buff brick; València's party walls are orange hollow brick & beige render)
+    backColors = [0x6c3d30, 0x8a503e, 0x9a8669, 0xb09a7a],
+    pargeColor = 0x8f8b84,
+    signs = 1, // faded painted adverts on some lot-line walls (0: none)
+    soot = 1, // soot & rain-streak strength
+    dado = 0, // glazed-tile dado (a checker of dadoColors up to ~1.2 m) on the ground floor of street fronts
+    dadoColors = [0x2e6a4a, 0xeceae2],
+    // Persianes over the upper windows (gap #4): three paints (a building mostly keeps one), slats per metre, the
+    // share of windows with the blind rolled up, and the roller box over the opening (1: PVC / aluminium rollers)
+    persianaColors = [0x4f6b4c, 0x7a5537, 0x6c7a73],
+    persianaSlats = 11,
+    persianaOpen = 0.58,
+    persianaBox = 0,
+    // Stone / terrazzo base (sòcol) along the ground floor of street fronts, metres high (0: none)
+    plinthColor = 0x8d8983,
+    plinth = 0
   } = opts;
 
-  const cacheKey = `${stoneColor}_${trimColor}_${windowWidth}_${floorHeight}_${windowRatioX}_${windowRatioY}_${litProbability}_${warmth}_${crownGlowHeight}_${seed}_${stucco}_${boxLocal}_${cornerPier}`;
+  const cacheKey = `${stoneColor}_${trimColor}_${windowWidth}_${floorHeight}_${windowRatioX}_${windowRatioY}_${litProbability}_${warmth}_${crownGlowHeight}_${seed}_${stucco}_${boxLocal}_${cornerPier}_${backColors.join('.')}_${pargeColor}_${signs}_${soot}_${dado}_${dadoColors.join('.')}_${persianaColors.join('.')}_${persianaSlats}_${persianaOpen}_${persianaBox}_${plinthColor}_${plinth}`;
   if (_preWarCache.has(cacheKey)) {
     return _preWarCache.get(cacheKey);
   }
@@ -708,6 +754,19 @@ function createPreWarBuildingMaterial(opts = {}) {
   const uCrownGlowHeight = uniform(crownGlowHeight);
   const uSeed = uniform(seed);
   const uStucco = uniform(stucco);
+  const cBack = backColors.map((c) => uniform(new THREE.Color(c)));
+  const cParge = uniform(new THREE.Color(pargeColor));
+  const uSigns = uniform(signs);
+  const uSoot = uniform(soot);
+  const uDado = uniform(dado);
+  const cDadoA = uniform(new THREE.Color(dadoColors[0]));
+  const cDadoB = uniform(new THREE.Color(dadoColors[1]));
+  const cPers = persianaColors.map((c) => uniform(new THREE.Color(c)));
+  const uPersSlats = uniform(persianaSlats);
+  const uPersOpen = uniform(persianaOpen);
+  const uPersBox = uniform(persianaBox);
+  const cPlinth = uniform(new THREE.Color(plinthColor));
+  const uPlinth = uniform(plinth);
   const cSoot = color(0x4a4236);
   const cWarmWindow = color(0xffcf86);
   const cCoolWindow = color(0xcfe2ff);
@@ -722,16 +781,25 @@ function createPreWarBuildingMaterial(opts = {}) {
   // so the shader carries a single copy of them (and evaluates the interior mapping once per pixel)
   const facade = facadeCell(uWindowWidth, uFloorHeight, boxLocal, cornerPier);
   const { isRoof, uCoord, vCoord, gridV, cellId, cellUV, fw, bayWidth, isGroundFloor, solid, back, blank, door, tone } = facade;
-  const { wallS, wallW, wallH, fromTop, boxSeed, coping } = facade;
-  const open = float(1.0).sub(solid).mul(float(1.0).sub(door)); // 0 in the corner piers, blank walls & doorways
+  const { wallS, wallW, wallH, fromTop, boxSeed, coping, floor0 } = facade;
   const front = float(1.0).sub(back).sub(blank).max(0.0); // street fronts (band courses, sills under the band...)
+  // València (gap #4): the building's balcony mode & phase, persiana paint & ground-floor seeds (createFacadeBoxes
+  // `style`). Balcony cells open as doors down to the slab; a residential front's ground floor has no windows of the
+  // upper floors' kind but roller shutters, barred windows and plain render (painted below)
+  const style = boxLocal ? attribute('style', 'vec4') : vec4(0.0);
+  const balc = boxLocal ? balconyMask(style.x, floor(style.y), facade.bayIdx, floor(gridV)).mul(front).mul(float(1.0).sub(isGroundFloor)) : float(0.0);
+  const entryGround = floor0.mul(facade.entryWall);
+  const open = float(1.0).sub(solid).mul(float(1.0).sub(door)).mul(float(1.0).sub(entryGround)); // 0 in the corner piers, blank walls & doorways
+  const camDist = length(positionWorld.sub(cameraPosition));
+  const paintedRail = smoothstep(FACADE_DETAIL_LOD - 45.0, FACADE_DETAIL_LOD - 5.0, camDist); // 3D balconies nearer
   const effHalfX = mix(float(halfWinX), float(0.11), isGroundFloor);
   const effHalfY = mix(float(halfWinY), float(0.10), isGroundFloor);
+  const effLowY = mix(effHalfY, float(0.035), balc); // sill of the opening (a balcony door reaches the slab)
   // Glazing UV inside the window opening, the 3D apartment behind it and the storefront lighting
   const winUV = clamp(
     vec2(
       cellUV.x.sub(effHalfX).div(max(0.01, float(1.0).sub(effHalfX.mul(2.0)))),
-      cellUV.y.sub(effHalfY).div(max(0.01, float(1.0).sub(effHalfY.mul(2.0))))
+      cellUV.y.sub(effLowY).div(max(0.01, float(1.0).sub(effHalfY).sub(effLowY)))
     ),
     vec2(0.0),
     vec2(1.0)
@@ -742,14 +810,22 @@ function createPreWarBuildingMaterial(opts = {}) {
   // Window AC units (~4% of upper-floor windows), none in the floor the band course covers
   const beltFloor = step(5.0, mod(floor(gridV), 6.0)).mul(front);
   const acRand = hash2D(cellId.add(vec2(uSeed.mul(1.3).add(7.1), 91.7)));
-  const hasAC = step(0.96, acRand).mul(float(1.0).sub(isGroundFloor)).mul(float(1.0).sub(isRoof)).mul(open).mul(float(1.0).sub(beltFloor));
+  const hasAC = step(0.96, acRand).mul(float(1.0).sub(isGroundFloor)).mul(float(1.0).sub(isRoof)).mul(open).mul(float(1.0).sub(beltFloor))
+    .mul(float(1.0).sub(balc));
+  // Persiana of each upper window: rolled up on persianaOpen of them, otherwise down 15-100% (a third all the way)
+  const shutRand = hash2D(cellId.add(vec2(uSeed.mul(0.7).add(3.3), 47.1)));
+  const dropRnd = fract(shutRand.mul(7.13));
+  const shutDrop = step(uPersOpen, shutRand).mul(mix(mix(float(0.15), float(1.0), dropRnd), float(1.0), step(dropRnd, 0.3)));
+  const shutterDrop = step(float(1.0).sub(shutDrop), winUV.y).mul(step(0.01, shutDrop)).mul(float(1.0).sub(isGroundFloor));
+  // Ground-floor bay kind (roller shutter, barred window, plain wall), varied per building by style.w
+  const groundRand = fract(hash2D(cellId.add(vec2(uSeed.mul(2.3), 11.7))).add(style.w));
 
   mat.colorNode = Fn(() => {
     const oneMinusEffX = float(1.0).sub(effHalfX);
     const oneMinusEffY = float(1.0).sub(effHalfY);
 
     const inX = filteredPulse(cellUV.x, effHalfX, oneMinusEffX, fw.x).mul(open);
-    const inY = filteredPulse(cellUV.y, effHalfY, oneMinusEffY, fw.y);
+    const inY = filteredPulse(cellUV.y, effLowY, oneMinusEffY, fw.y);
 
     // Horizontal cornice belt every 6 floors (street fronts only) + ground floor storefront fascia at top of floor 0
     const cornicePhase = fract(gridV.div(6.0));
@@ -800,8 +876,8 @@ function createPreWarBuildingMaterial(opts = {}) {
     // Rear, court & lot-line walls are plain common brick (red-brown or buff by building); lot-line walls weather in
     // patches of grey parging (worked out on those walls only), some are parged all over
     const backBrick = mix(
-      mix(color(0x6c3d30), color(0x8a503e), fract(tone.mul(7.31))),
-      mix(color(0x9a8669), color(0xb09a7a), fract(tone.mul(5.17))),
+      mix(cBack[0], cBack[1], fract(tone.mul(7.31))),
+      mix(cBack[2], cBack[3], fract(tone.mul(5.17))),
       step(0.58, tone)
     );
     const parged = float(0.0).toVar();
@@ -809,7 +885,7 @@ function createPreWarBuildingMaterial(opts = {}) {
       const pargePatch = smoothstep(0.6, 0.76, noise2D(vec2(uCoord.mul(0.11), vCoord.mul(0.07)).add(tone.mul(37.0))));
       parged.assign(max(step(0.74, fract(tone.mul(3.7))), pargePatch.mul(0.85)));
     });
-    const backTint = mix(backBrick, color(0x8f8b84), parged);
+    const backTint = mix(backBrick, cParge, parged);
     const mortarJoint = max(
       gridLine(colCoord.mul(brickL), brickL, 0.016),
       gridLine(vCoord, brickH, 0.016)
@@ -824,7 +900,7 @@ function createPreWarBuildingMaterial(opts = {}) {
     const brickShiftVec = vec3(float(1.0).add(brickWarmShift), float(1.0), float(1.0).sub(brickWarmShift));
 
     const streakNoise = mix(float(0.5), noise2D(vec2(uCoord.mul(1.4), vCoord.mul(0.05))), float(1.0).sub(smoothstep(0.5, 1.0, uFw.mul(1.4))));
-    const sootDirt = smoothstep(0.25, 0.78, streakNoise).mul(float(1.0).sub(smoothstep(0.0, 180.0, vCoord))).mul(0.36);
+    const sootDirt = smoothstep(0.25, 0.78, streakNoise).mul(float(1.0).sub(smoothstep(0.0, 180.0, vCoord))).mul(0.36).mul(uSoot);
 
     const lintelShadow = smoothstep(oneMinusEffY.sub(0.14), oneMinusEffY, cellUV.y).mul(0.58);
     const jambShadow = float(1.0).sub(smoothstep(effHalfX, effHalfX.add(0.08), cellUV.x)).mul(0.42);
@@ -832,7 +908,7 @@ function createPreWarBuildingMaterial(opts = {}) {
     // (on the upper floors the sill is a balcony's stone slab, wider than the window & casting a deeper shadow)
     const slab = float(1.0).sub(isGroundFloor);
     const sillSpan = filteredPulse(cellUV.x, effHalfX.sub(mix(float(0.045), float(0.13), slab)), oneMinusEffX.add(mix(float(0.045), float(0.13), slab)), fw.x)
-      .mul(open).mul(float(1.0).sub(beltFloor));
+      .mul(open).mul(float(1.0).sub(beltFloor)).mul(float(1.0).sub(balc));
     const isSillTop = filteredPulse(cellUV.y, effHalfY.sub(mix(float(0.032), float(0.05), slab)), effHalfY, fw.y).mul(sillSpan);
     const isSillUnderShadow = filteredPulse(cellUV.y, effHalfY.sub(mix(float(0.075), float(0.16), slab)), effHalfY.sub(mix(float(0.032), float(0.05), slab)), fw.y).mul(sillSpan);
 
@@ -845,7 +921,7 @@ function createPreWarBuildingMaterial(opts = {}) {
     // over a smaller one, flaking off the brick. The lettering is only worked out inside the panel.
     const signW = min(wallW.sub(3.0), 18.0);
     const signH = min(min(wallH.mul(0.3), signW.mul(0.42)), 6.5);
-    const hasSign = blank.mul(back).mul(float(1.0).sub(step(0.74, fract(tone.mul(3.7)))))
+    const hasSign = uSigns.mul(blank).mul(back).mul(float(1.0).sub(step(0.74, fract(tone.mul(3.7)))))
       .mul(step(0.8, fract(tone.mul(13.7).add(boxSeed.mul(0.618)))))
       .mul(step(5.0, signW)).mul(step(2.6, signH));
     const su = wallS.sub(wallW.sub(signW).mul(0.5)).div(signW); // 0..1 across the panel
@@ -920,27 +996,55 @@ function createPreWarBuildingMaterial(opts = {}) {
 
     const frameCol = masonryTint.mul(0.46).mul(recessShade);
     const roofNoise = noise2D(positionWorld.xz.mul(0.35));
-    const roofCol = mix(cTrim.mul(0.42), cTrim.mul(0.62), roofNoise);
+    let roofCol = mix(cTrim.mul(0.42), cTrim.mul(0.62), roofNoise);
+    if (boxLocal) roofCol = mixRoofTint(roofCol, roofNoise);
 
-    const wallOrRoof = mix(masonryWeathered, roofCol, isRoof);
+    // Glazed-tile dado on the street fronts' ground floor (Poblats Marítims): a checker of 20 cm tiles up to 1.2 m,
+    // capped by a thin edge tile
+    const dadoBand = uDado.mul(front).mul(float(1.0).sub(isRoof)).mul(float(1.0).sub(step(1.2, vCoord)));
+    const dadoCheck = mod(floor(uCoord.div(0.2)).add(floor(vCoord.div(0.2))), 2.0);
+    const dadoEdge = step(1.12, vCoord);
+    const dadoCol = mix(mix(cDadoB, cDadoA, dadoCheck), cDadoA.mul(0.8), dadoEdge);
+    // Stone or terrazzo base (sòcol) along the ground floor of every street front, in slabs ~0.6 m long
+    const plinthBand = step(0.01, uPlinth).mul(front).mul(floor0).mul(float(1.0).sub(isRoof)).mul(float(1.0).sub(dadoBand))
+      .mul(float(1.0).sub(step(uPlinth, vCoord)));
+    const slabCoord = uCoord.div(0.6);
+    const plinthJoint = max(
+      filteredPulse(fract(slabCoord), 0.0, 0.03, fwidth(slabCoord)),
+      filteredPulse(uPlinth.sub(vCoord), 0.0, 0.03, fwidth(vCoord))
+    );
+    const plinthCol = cPlinth.mul(hash2D(vec2(floor(slabCoord), boxSeed)).mul(0.12).add(0.94)).mul(float(1.0).sub(plinthJoint.mul(0.3)))
+      .mul(float(1.0).sub(sootDirt.mul(0.6)));
+    // (gap #11) some older fronts (wooden blinds, no roller box) have a sòcol of glazed tiles: white with a blue or
+    // green diamond in each 15 cm tile, a thin border tile on top
+    const tileSocol = step(0.78, style.w).mul(float(1.0).sub(uPersBox));
+    const tu = fract(uCoord.div(0.15)).sub(0.5), tv = fract(vCoord.div(0.15)).sub(0.5);
+    const diamond = abs(abs(tu).add(abs(tv)).sub(0.28));
+    const tileMotif = filteredPulse(diamond, 0.0, 0.06, fwidth(uCoord).div(0.15)).mul(float(1.0).sub(step(uPlinth.sub(0.08), vCoord)));
+    const tileInk = mix(color(0x2c5390), color(0x2e6a4a), step(0.9, style.w));
+    const tileCol = mix(mix(color(0xe6e2d6), tileInk, tileMotif), tileInk.mul(0.85), step(uPlinth.sub(0.06), vCoord))
+      .mul(float(1.0).sub(sootDirt.mul(0.4)));
+    const socolCol = mix(plinthCol, tileCol, tileSocol);
+    const wallOrRoof = mix(mix(mix(masonryWeathered, dadoCol, dadoBand), socolCol, plinthBand), roofCol, isRoof);
     const withFrames = mix(wallOrRoof, frameCol, isWindowOpening.mul(sashMask));
     const withGlass = mix(withFrames, glassCol, isWindowGlass);
-    // Barcelona's French windows on the upper floors: louvered persianes drawn over some (all the way or the top part)
-    // and the wrought-iron railing of the balcony across the foot of every one
+    // Persianes over the upper windows (gap #4), rolled down part or all of the way: wooden alicantinas & louvres on
+    // the older fronts, PVC / aluminium rollers in their box on the newer ones; a building mostly keeps one paint.
+    // Balcony railings are painted only beyond the 3D balconies' reach (vlc-balconies.js)
     const upperWin = isWindowOpening.mul(float(1.0).sub(isGroundFloor));
-    const shutRand = hash2D(cellId.add(vec2(uSeed.mul(0.7).add(3.3), 47.1)));
-    const shutDrop = step(shutRand, 0.2).add(step(0.2, shutRand).mul(step(shutRand, 0.42)).mul(0.45));
-    const shutter = step(float(1.0).sub(shutDrop), winUV.y).mul(upperWin).mul(step(0.01, shutDrop));
-    const shutPick = fract(shutRand.mul(17.3));
-    const shutPaint = mix(mix(color(0x4f6b4c), color(0x7a5537), step(0.45, shutPick)), color(0x6c7a73), step(0.8, shutPick));
-    const slats = float(1.0).sub(filteredPulse(fract(vCoord.mul(11.0)), 0.0, 0.35, fwidth(vCoord).mul(11.0)).mul(0.35));
-    const shutterCol = shutPaint.mul(slats).mul(recessShade.mul(0.3).add(0.7));
+    const shutter = shutterDrop.mul(upperWin);
+    const shutPick = fract(style.z.add(step(0.86, fract(shutRand.mul(17.3))).mul(0.37)));
+    const shutPaint = mix(mix(cPers[0], cPers[1], step(0.45, shutPick)), cPers[2], step(0.8, shutPick));
+    const slatCoord = vCoord.mul(uPersSlats);
+    const slats = float(1.0).sub(filteredPulse(fract(slatCoord), 0.0, 0.35, fwidth(slatCoord)).mul(0.35));
+    const rollBox = uPersBox.mul(upperWin).mul(step(float(0.9), winUV.y));
+    const shutterCol = shutPaint.mul(slats).mul(recessShade.mul(0.3).add(0.7)).mul(float(1.0).sub(rollBox.mul(0.12)));
     const railFw = fw.x.mul(10.0).div(max(oneMinusEffX.sub(effHalfX), 0.05));
     const bars = filteredPulse(fract(winUV.x.mul(10.0)), 0.4, 0.6, railFw);
-    const railBand = filteredPulse(winUV.y, 0.0, 0.36, fw.y.mul(2.0));
-    const rails = max(filteredPulse(winUV.y, 0.31, 0.36, fw.y.mul(2.0)), filteredPulse(winUV.y, 0.0, 0.04, fw.y.mul(2.0)));
-    const iron = max(bars, rails).mul(railBand).mul(upperWin);
-    const withShutters = mix(withGlass, shutterCol, shutter);
+    const railBand = filteredPulse(winUV.y, 0.0, 0.4, fw.y.mul(2.0));
+    const rails = max(filteredPulse(winUV.y, 0.35, 0.4, fw.y.mul(2.0)), filteredPulse(winUV.y, 0.0, 0.04, fw.y.mul(2.0)));
+    const iron = max(bars, rails).mul(railBand).mul(upperWin).mul(balc).mul(paintedRail);
+    const withShutters = mix(withGlass, shutterCol, max(shutter, rollBox));
     const withRailing = mix(withShutters, color(0x1b1a19), iron.mul(0.92));
     const withAC = mix(withRailing, acColor, inACBox);
 
@@ -961,14 +1065,67 @@ function createPreWarBuildingMaterial(opts = {}) {
       const doorCol = mix(doorPaint.mul(float(1.0).sub(doorPanels.mul(0.5))), mix(cGlass, cityUniforms.uSkyHorizonColor, 0.18), transom);
       finalCol.assign(mix(mix(withAC, cTrim.mul(0.85), surround), doorCol, inDoorway));
     });
+    // Street-front ground floors (gap #4): a residential front's bays are roller shutters (garages, closed premises),
+    // barred windows or plain render over the plinth; some shopfronts have their shutter down. Box-filtered with the
+    // cell footprint (no derivatives in this branch)
+    If(floor0.mul(front).mul(float(1.0).sub(door)).mul(float(1.0).sub(solid)).mul(float(1.0).sub(isRoof)).greaterThan(0.5), () => {
+      const shutBay = max(entryGround.mul(step(groundRand, 0.42)), isGroundFloor.mul(step(0.86, groundRand)));
+      const barredWin = entryGround.mul(step(0.42, groundRand)).mul(step(groundRand, 0.78));
+      // Roller shutter: ribs every 10 cm under its box, galvanised, white, green or beige
+      const inShut = filteredPulse(cellUV.x, 0.08, 0.92, fw.x).mul(filteredPulse(cellUV.y, 0.0, 0.8, fw.y)).mul(shutBay);
+      const shutBox = filteredPulse(cellUV.x, 0.06, 0.94, fw.x).mul(filteredPulse(cellUV.y, 0.8, 0.87, fw.y)).mul(shutBay);
+      const ribFw = fw.y.mul(uFloorHeight).div(0.1);
+      const ribs = filteredPulse(fract(vCoord.div(0.1)), 0.0, 0.22, ribFw);
+      const sp = fract(groundRand.mul(13.1));
+      const metal = mix(mix(color(0x9a9c9a), color(0xd6d3cb), step(0.4, sp)), mix(color(0x3e5a47), color(0xb9ae96), step(0.85, sp)), step(0.7, sp));
+      const shutCol = metal.mul(float(1.0).sub(ribs.mul(0.28))).mul(mix(float(0.9), float(1.0), cellUV.y));
+      // Barred window: a smaller opening high in the bay behind a grille (reja) of iron bars
+      const inWin = filteredPulse(cellUV.x, 0.24, 0.76, fw.x).mul(filteredPulse(cellUV.y, 0.34, 0.8, fw.y)).mul(barredWin);
+      const winFrame = filteredPulse(cellUV.x, 0.2, 0.8, fw.x).mul(filteredPulse(cellUV.y, 0.3, 0.84, fw.y)).mul(barredWin);
+      const barCoord = cellUV.x.mul(bayWidth).div(0.11);
+      const barFw = fw.x.mul(bayWidth).div(0.11);
+      const rejaBars = max(filteredPulse(fract(barCoord), 0.0, 0.18, barFw),
+        max(filteredPulse(cellUV.y, 0.47, 0.49, fw.y), filteredPulse(cellUV.y, 0.66, 0.68, fw.y)));
+      const rejaGlass = mix(cGlass.mul(1.2), cityUniforms.uSkyHorizonColor, 0.12);
+      const rejaCol = mix(rejaGlass, color(0x1d1c1b), rejaBars.mul(0.9));
+      const base = finalCol.toVar();
+      const withFrame = mix(base, cTrim.mul(0.85), winFrame);
+      const withWin = mix(withFrame, rejaCol, inWin);
+      const withBox = mix(withWin, metal.mul(0.78), shutBox);
+      const shutDone = mix(withBox, shutCol, inShut);
+      // Graffiti (gap #11): our own procedural pieces (bubbly letter-like blobs, filled & outlined) on shutters and
+      // tags (scribbled strokes) on the render, on a share of the bays set by barri & age (style.y's fraction)
+      const tagRnd = hash2D(cellId.add(vec2(5.1, uSeed.mul(0.3))));
+      const tagged = step(float(1.0).sub(fract(style.y)), tagRnd).mul(float(1.0).sub(inWin)).mul(float(1.0).sub(winFrame));
+      const gseed = tagRnd.mul(91.7);
+      const field = noise2D(vec2(uCoord.mul(1.7), vCoord.mul(2.4)).add(gseed)).mul(0.72)
+        .add(noise2D(vec2(uCoord.mul(4.3), vCoord.mul(1.4)).add(gseed.mul(1.7))).mul(0.28));
+      const aa = clamp(fw.y.mul(uFloorHeight).mul(3.0), 0.01, 0.25);
+      const band = step(0.2, vCoord).mul(step(vCoord, mix(float(1.7), float(2.5), inShut)));
+      const fill = smoothstep(float(0.5).sub(aa), float(0.5).add(aa), field).mul(band);
+      const outline = smoothstep(float(0.065).add(aa), float(0.035), abs(field.sub(0.5))).mul(band);
+      const palette = fract(tagRnd.mul(7.7)).mul(6.0);
+      const ink = mix(mix(mix(color(0x8bd13d), color(0xd8352f), step(1.0, palette)), mix(color(0x2f6fd0), color(0xe86fb4), step(3.0, palette)), step(2.0, palette)),
+        mix(color(0xf2c230), color(0xd5d5d0), step(5.0, palette)), step(4.0, palette));
+      const pieceCol = mix(ink.mul(mix(float(0.85), float(1.15), noise2D(vec2(uCoord.mul(3.0), vCoord.mul(9.0)).add(gseed)))), color(0x151515), outline);
+      const piece = max(fill, outline);
+      // tags: a squiggled stroke across the bay at hand height
+      const stroke = abs(fract(uCoord.mul(2.3).add(sin(vCoord.mul(9.0).add(uCoord.mul(5.0)).add(gseed)).mul(0.33))).sub(0.5));
+      const tagLine = smoothstep(float(0.07).add(aa), float(0.03), stroke).mul(step(1.05, vCoord)).mul(step(vCoord, 1.65))
+        .mul(step(0.25, cellUV.x)).mul(step(cellUV.x, 0.8));
+      const isPiece = max(inShut, step(0.6, fract(tagRnd.mul(3.3))));
+      const grafMask = mix(tagLine, piece, isPiece).mul(tagged).mul(max(entryGround, inShut));
+      const grafCol = mix(mix(color(0x1a1a1a), color(0xcfcfca), step(0.5, fract(tagRnd.mul(5.1)))), pieceCol, isPiece);
+      finalCol.assign(mix(shutDone, grafCol, grafMask.mul(0.9)));
+    });
     return finalCol;
   })();
 
   mat.roughnessNode = Fn(() => {
     const belt = filteredPulse(gridV.div(6.0), 0.86, 1.0, fw.y.div(6.0)).mul(front);
     const inX = filteredPulse(cellUV.x, halfWinX, 1.0 - halfWinX, fw.x).mul(open).mul(float(1.0).sub(belt));
-    const inY = filteredPulse(cellUV.y, halfWinY, 1.0 - halfWinY, fw.y);
-    const isWindow = inX.mul(inY).mul(float(1.0).sub(isRoof));
+    const inY = filteredPulse(cellUV.y, mix(float(halfWinY), effLowY, balc), 1.0 - halfWinY, fw.y);
+    const isWindow = inX.mul(inY).mul(float(1.0).sub(isRoof)).mul(float(1.0).sub(shutterDrop.mul(0.8)));
 
     const winY = clamp(cellUV.y.sub(halfWinY).div(max(0.01, 1.0 - 2.0 * halfWinY)), 0.0, 1.0);
     const pooledRough = float(1.0).sub(smoothstep(0.0, 0.32, winY)).mul(0.38);
@@ -991,7 +1148,7 @@ function createPreWarBuildingMaterial(opts = {}) {
     // Stone band course every 6 floors on street fronts: no window recesses, sills or AC units in it
     const belt = filteredPulse(gridV.div(6.0), 0.86, 1.0, ramp.y.div(6.0)).mul(front);
     const inX = filteredPulse(cellUV.x, effHalfX, float(1.0).sub(effHalfX), ramp.x).mul(open).mul(float(1.0).sub(belt));
-    const inY = filteredPulse(cellUV.y, effHalfY, float(1.0).sub(effHalfY), ramp.y);
+    const inY = filteredPulse(cellUV.y, effLowY, float(1.0).sub(effHalfY), ramp.y);
     const isWindow = inX.mul(inY);
 
     const brickH = 0.24;
@@ -1025,7 +1182,8 @@ function createPreWarBuildingMaterial(opts = {}) {
     const glowHalfY = mix(float(halfWinY + 0.015), float(0.11), isGroundFloor);
 
     const inX = filteredPulse(cellUV.x, glowHalfX, float(1.0).sub(glowHalfX), fw.x).mul(open);
-    const inY = filteredPulse(cellUV.y, glowHalfY, float(1.0).sub(glowHalfY), fw.y);
+    const inY = filteredPulse(cellUV.y, mix(glowHalfY, float(0.05), balc), float(1.0).sub(glowHalfY), fw.y)
+      .mul(float(1.0).sub(shutterDrop.mul(0.9)));
     const isCornice = max(
       filteredPulse(fract(gridV.div(6.0)), 0.86, 1.0, fw.y.div(6.0)).mul(front),
       isGroundFloor.mul(filteredPulse(cellUV.y, 0.86, 1.0, fw.y))
@@ -1075,17 +1233,23 @@ function createPreWarBuildingMaterial(opts = {}) {
 }
 
 /**
- * Instanced unit boxes for the facade materials' `boxLocal` mode, one per { x, y, z, w, h, d, faces?, tone?, ry? }
+ * Instanced unit boxes for the facade materials' `boxLocal` mode, one per { x, y, z, w, h, d, faces?, tone?, ry?, roof? }
+ * (`roof`: the roof's measured colour, linear RGB)
  * (y = centre; ry: turn about +y, for blocks laid out along a non-grid street), with the per-instance `box` attribute
  * (size + a spread seed carrying the building's tone in its fraction) that lays each wall out in whole window bays,
  * and `faces`: the WALL_KINDS of the box's -x, +x, -z & +z walls (storefront fronts all round when omitted).
+ * `style` (gap #4): [balcony mode, balcony phase, persiana paint seed 0..1, ground-floor seed 0..1] (see balconyMask).
  */
 function createFacadeBoxes(material, boxes) {
   const geometry = new THREE.BoxGeometry(1, 1, 1);
   const box = new THREE.InstancedBufferAttribute(new Float32Array(boxes.length * 4), 4);
   const faces = new THREE.InstancedBufferAttribute(new Float32Array(boxes.length * 4), 4);
+  const roofTint = new THREE.InstancedBufferAttribute(new Float32Array(boxes.length * 3).fill(-1), 3);
+  const style = new THREE.InstancedBufferAttribute(new Float32Array(boxes.length * 4), 4);
+  geometry.setAttribute('style', style);
   geometry.setAttribute('box', box);
   geometry.setAttribute('faces', faces);
+  geometry.setAttribute('roofTint', roofTint);
 
   const mesh = new THREE.InstancedMesh(geometry, material, boxes.length);
   const matrix = new THREE.Matrix4();
@@ -1098,6 +1262,8 @@ function createFacadeBoxes(material, boxes) {
     else mesh.setMatrixAt(i, matrix.makeScale(b.w, b.h, b.d).setPosition(b.x, b.y, b.z));
     box.setXYZW(i, b.w, b.h, b.d, ((i * 29) % 1000) + 0.1 + 0.8 * (b.tone ?? 0.5));
     if (b.faces) faces.setXYZW(i, b.faces[0], b.faces[1], b.faces[2], b.faces[3]);
+    if (b.roof) roofTint.setXYZ(i, b.roof[0], b.roof[1], b.roof[2]);
+    if (b.style) style.setXYZW(i, b.style[0], b.style[1], b.style[2], b.style[3]);
   });
   return mesh;
 }
@@ -1670,13 +1836,13 @@ function roadWetMasks(field, drainage = 0.0) {
  */
 function createRoadSurfaceMaterial() {
   const mat = new THREE.MeshStandardNodeMaterial({
-    metalness: 0.24,
-    roughness: 0.48
+    metalness: 0.0,
+    roughness: 0.9
   });
 
-  const cAsphaltDark = color(0x2b2e33);
-  const cAsphaltLight = color(0x464a51);
-  const cManhole = color(0x4a433c);
+  // València's sun-bleached asphalt: a pale warm grey (Street View median sRGB 136, 133, 133 at midday)
+  const cAsphaltDark = color(0x4a443c);
+  const cAsphaltLight = color(0x615a52);
 
   // Puddle field & wetness masks shared by every channel below (each node is generated once per fragment)
   const puddleField = roadPuddleField(positionWorld.x, positionWorld.z);
@@ -1689,11 +1855,30 @@ function createRoadSurfaceMaterial() {
   const viewDir = normalize(cameraPosition.sub(positionWorld));
   const waterFresnel = pow(float(1.0).sub(clamp(viewDir.y, 0.0, 1.0)), 5.0).mul(0.98).add(0.02);
 
-  mat.aoNode = canyonSkyAONode();
+  mat.aoNode = groundAONode();
+
+  // Repair patches: in each cell of a jittered grid, sometimes a rectangle of newer (darker) or older (paler) asphalt
+  // with a dark sealed seam around it, the trench and pothole repairs of a city street
+  const patchLayer = (xz, cellSize, seed) => {
+    const cell = floor(xz.div(cellSize));
+    const h1 = hash2D(cell.add(seed));
+    const h2 = hash2D(cell.add(seed + 17.3));
+    const h3 = hash2D(cell.add(seed + 41.9));
+    const local = xz.sub(cell.mul(cellSize));
+    const size = vec2(mix(0.25, 0.8, h2), mix(0.15, 0.55, h3)).mul(cellSize);
+    const centre = vec2(mix(size.x.mul(0.5), float(cellSize).sub(size.x.mul(0.5)), h3),
+      mix(size.y.mul(0.5), float(cellSize).sub(size.y.mul(0.5)), h2));
+    const d = abs(local.sub(centre)).sub(size.mul(0.5)); // < 0 inside
+    const inside = step(max(d.x, d.y), 0.0).mul(step(0.62, h1));
+    const seam = float(1.0).sub(smoothstep(0.0, 0.05, abs(max(d.x, d.y)))).mul(step(0.62, h1));
+    const tone = mix(0.78, 1.1, fract(h1.mul(7.13))); // newer pours darker, old ones bleached
+    return vec2(mix(float(1.0), tone, inside), seam);
+  };
 
   mat.colorNode = Fn(() => {
     const wx = positionWorld.x;
     const wz = positionWorld.z;
+    const xz = vec2(wx, wz);
     const camDist = length(positionWorld.sub(cameraPosition));
     const detail = smoothstep(240.0, 22.0, camDist);
 
@@ -1701,27 +1886,26 @@ function createRoadSurfaceMaterial() {
     const microAggregate = mix(float(0.5), noise2D(vec2(wx.mul(16.0), wz.mul(16.0))), smoothstep(0.06, 0.02, pixelSize));
     const fineGrain = mix(float(0.5), noise2D(vec2(wx.mul(3.2), wz.mul(3.2))), smoothstep(0.4, 0.12, pixelSize));
     const patchNoise = noise2D(vec2(wx.mul(0.18), wz.mul(0.18)));
-    const oilyStain = smoothstep(0.52, 0.84, noise2D(vec2(wx.mul(0.42), wz.mul(0.42)))).mul(detail);
-    const tarSeam = float(1.0).sub(smoothstep(0.0, 0.04, abs(patchNoise.sub(0.52)))).mul(0.42).mul(detail);
+    const oilyStain = smoothstep(0.55, 0.86, noise2D(vec2(wx.mul(0.42), wz.mul(0.42)))).mul(detail);
+    const tarSeam = float(1.0).sub(smoothstep(0.0, 0.03, abs(patchNoise.sub(0.52)))).mul(0.3).mul(detail);
+    const pA = patchLayer(xz, 9.0, 3.1);
+    const pB = patchLayer(xz.add(vec2(4.3, 2.7)), 23.0, 11.7);
+    const seams = max(pA.y, pB.y).mul(0.35).mul(detail);
 
     const baseAsphalt = mix(
       cAsphaltDark,
       cAsphaltLight,
       fineGrain.mul(0.36).add(microAggregate.mul(0.22)).add(patchNoise.mul(0.26))
     )
-      .mul(float(1.0).sub(oilyStain.mul(0.32)))
-      .mul(float(1.0).sub(tarSeam));
-
-    // Circular cast-iron ConEd / NYC Sewer manhole covers scattered over the roadway (one 14 m cell in three)
-    const mhCell = floor(vec2(wx, wz).div(14.0));
-    const mhCentre = mhCell.add(vec2(hash2D(mhCell.add(13.7)), hash2D(mhCell.add(29.1))).mul(0.6).add(0.2)).mul(14.0);
-    const mhDist = length(vec2(wx, wz).sub(mhCentre));
-    const isManhole = float(1.0).sub(smoothstep(0.52, 0.60, mhDist)).mul(step(0.66, hash2D(mhCell))).mul(detail);
-    const mhRings = sin(mhDist.mul(36.0)).mul(0.15).add(0.85);
+      .mul(pA.x.mul(pB.x))
+      .mul(float(1.0).sub(oilyStain.mul(0.22)))
+      .mul(float(1.0).sub(tarSeam))
+      .mul(float(1.0).sub(seams));
 
     // Water filling the pores darkens the surface: damp stains & pools most, the overall wet film a little
+    // (manhole covers & storm drains are decals at their real places: js/vlc-ground-decals.js)
     const wetDarkening = mix(mix(float(1.0), float(0.72), damp), float(0.6), puddle).mul(mix(float(1.0), float(0.8), film));
-    return mix(baseAsphalt, cManhole.mul(mhRings), isManhole).mul(wetDarkening);
+    return baseAsphalt.mul(wetDarkening);
   })();
 
   mat.roughnessNode = Fn(() => {
@@ -1759,7 +1943,8 @@ function createRoadSurfaceMaterial() {
     const neonCol = mix(color(0xff2a85), color(0x2ad4ff), neonPatch).mul(0.32);
     const reflectCol = mix(skyMirror, neonCol, tsDist.mul(0.65));
 
-    return reflectCol.mul(max(puddle, film.mul(0.35))).mul(roadFresnel).mul(cityUniforms.uInteriorGlow).mul(0.07);
+    return reflectCol.mul(max(puddle, film.mul(0.35))).mul(roadFresnel).mul(cityUniforms.uInteriorGlow).mul(0.07)
+      .add(groundBounce(mat.colorNode));
   })();
 
   return mat;
@@ -1810,13 +1995,14 @@ function createRoadPaintMaterial() {
   const wet = roadWetMasks(roadPuddleField(positionWorld.x, positionWorld.z)); // same pools & film as the asphalt
   mat.colorNode = vec3(mix(float(1.0), float(0.72), wet.y).mul(mix(float(1.0), float(0.86), wet.z)));
   mat.roughnessNode = mix(mix(float(0.62), float(0.42), wet.z), float(0.2), wet.y);
-  mat.aoNode = canyonSkyAONode();
+  mat.aoNode = groundAONode();
+  mat.emissiveNode = groundBounce(mat.colorNode);
 
   return mat;
 }
 
 /**
- * NYC Concrete Sidewalk Flagstones with Filter-Width Anti-Aliased 1.5m Scored Expansion Joints,
+ * València's grey hydraulic-tile sidewalks (40 cm tiles, worn & grimy) with Filter-Width Anti-Aliased Joints,
  * -12mm `bumpNormal` Groove Relief, Per-Flag Tone Variation & Post-Rain Damp Patches
  * that follow cityUniforms.uRoadWetness like the roadway (better drained: fewer, smaller pools)
  * (Ported from SidewalkGenerator.js)
@@ -1827,8 +2013,9 @@ function createSidewalkMaterial() {
     roughness: 0.88
   });
 
-  const cConcreteA = color(0x8e8d85);
-  const cConcreteB = color(0x73726b);
+  // València's grey hydraulic tiles, worn and grimy (Street View median sRGB ~141 against the old 171)
+  const cConcreteA = color(0x4f4b45);
+  const cConcreteB = color(0x3f3c37);
 
   // Damp patches & pools on the flags, shared by every channel below (own field; drains better than the roadway)
   const swField = noise2D(vec2(positionWorld.x.mul(0.14).add(7.4), positionWorld.z.mul(0.14).sub(13.1))).mul(0.65)
@@ -1838,7 +2025,7 @@ function createSidewalkMaterial() {
   const swFresnel = pow(float(1.0).sub(clamp(normalize(cameraPosition.sub(positionWorld)).y, 0.0, 1.0)), 5.0).mul(0.98).add(0.02);
   const pixelSize = length(fwidth(positionWorld.xz));
 
-  mat.aoNode = canyonSkyAONode();
+  mat.aoNode = groundAONode();
 
   mat.colorNode = Fn(() => {
     const wx = positionWorld.x;
@@ -1846,26 +2033,30 @@ function createSidewalkMaterial() {
     const camDist = length(positionWorld.sub(cameraPosition));
     const detail = smoothstep(190.0, 16.0, camDist);
 
-    const panel = 1.5; // 5 ft NYC concrete sidewalk flags
+    const panel = 0.4; // 40 cm hydraulic tiles
     const panelHash = hash2D(floor(vec2(wx.div(panel), wz.div(panel))));
     const tone = noise2D(vec2(wx.mul(0.48), wz.mul(0.48)));
+    // grime: broad darker blotches (chewing gum, spills, the shade of decades of feet) and a few replaced tiles
+    const grime = smoothstep(0.35, 0.85, noise2D(vec2(wx.mul(0.21).add(3.3), wz.mul(0.21).sub(8.1)))).mul(0.16);
+    const replaced = step(0.965, panelHash).mul(0.1);
     const grit = noise2D(vec2(wx.mul(14.0), wz.mul(14.0))).sub(0.5).mul(0.08).mul(detail).mul(smoothstep(0.07, 0.02, pixelSize));
 
-    // Filter-width anti-aliased 1.5m scored joints
-    const joints = max(gridLine(wx, panel, 0.042), gridLine(wz, panel, 0.042)).mul(detail);
+    // Filter-width anti-aliased joints between the tiles
+    const joints = max(gridLine(wx, panel, 0.006), gridLine(wz, panel, 0.006)).mul(detail);
 
     // Post-rain damp patches, pools & the overall wet film darken the flags
     const baseConcrete = mix(cConcreteB, cConcreteA, tone)
-      .mul(panelHash.sub(0.5).mul(0.16).add(1.0))
+      .mul(panelHash.sub(0.5).mul(0.12).add(1.0).add(replaced))
+      .mul(float(1.0).sub(grime))
       .add(grit)
       .mul(mix(float(1.0), float(0.72), max(swWet.x, swPuddle)))
       .mul(mix(float(1.0), float(0.8), swWet.z));
 
-    return baseConcrete.mul(float(1.0).sub(joints.mul(0.45)));
+    return baseConcrete.mul(float(1.0).sub(joints.mul(0.35)));
   })();
 
   mat.roughnessNode = Fn(() => {
-    const panelHash = hash2D(floor(vec2(positionWorld.x.div(1.5), positionWorld.z.div(1.5))));
+    const panelHash = hash2D(floor(vec2(positionWorld.x.div(0.4), positionWorld.z.div(0.4))));
     const wetRough = mix(float(0.90).sub(panelHash.mul(0.06)), float(0.55), max(swWet.z, swWet.x.mul(0.7)));
     return mix(wetRough, float(0.2), swPuddle);
   })();
@@ -1880,11 +2071,13 @@ function createSidewalkMaterial() {
     const camDist = length(positionWorld.sub(cameraPosition));
     const detail = smoothstep(140.0, 14.0, camDist);
 
-    const joints = max(gridLine(wx, 1.5, 0.042), gridLine(wz, 1.5, 0.042));
+    const joints = max(gridLine(wx, 0.4, 0.006), gridLine(wz, 0.4, 0.006));
     const grain = noise2D(vec2(wx.mul(4.5), wz.mul(4.5))).sub(0.5).mul(0.003);
-    const height = grain.sub(joints.mul(0.012)).mul(detail).mul(float(1.0).sub(swPuddle));
+    const height = grain.sub(joints.mul(0.004)).mul(detail).mul(float(1.0).sub(swPuddle));
     return bumpNormal(height);
   })();
+
+  mat.emissiveNode = groundBounce(mat.colorNode);
 
   return mat;
 }
@@ -1900,7 +2093,7 @@ function createCurbMaterial() {
     roughness: 0.72
   });
 
-  mat.aoNode = canyonSkyAONode();
+  mat.aoNode = groundAONode();
 
   mat.colorNode = Fn(() => {
     const wx = positionWorld.x;
@@ -1929,359 +2122,8 @@ function createCurbMaterial() {
     return bumpNormal(grain.mul(detail));
   })();
 
-  return mat;
-}
+  mat.emissiveNode = groundBounce(mat.colorNode);
 
-/**
- * High-Definition Times Square / Broadway LED Video Wall TSL Material
- * Features 6 crisp, non-pixelated HDR shader themes with fine sub-pixel LED scanlines.
- */
-const _billboardCache = new Map();
-
-function createBillboardCanvasTexture(themeKey) {
-  const c = document.createElement('canvas');
-  c.width = 512;
-  c.height = 256;
-  const ctx = c.getContext('2d');
-
-  if (themeKey === 0) {
-    // Theme 0: Broadway Musical Marquee ("PHANTOM OF MANHATTAN · MAJESTIC THEATRE")
-    const grad = ctx.createLinearGradient(0, 0, 512, 256);
-    grad.addColorStop(0, '#2a0412');
-    grad.addColorStop(0.5, '#580a22');
-    grad.addColorStop(1, '#1c030c');
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, 512, 256);
-
-    // Golden Art Deco border & chaser bulb frame
-    ctx.strokeStyle = '#ffcf58';
-    ctx.lineWidth = 6;
-    ctx.strokeRect(10, 10, 492, 236);
-    ctx.strokeStyle = '#ff9824';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(18, 18, 476, 220);
-
-    // Stage spotlight halo
-    const rad = ctx.createRadialGradient(256, 118, 12, 256, 118, 185);
-    rad.addColorStop(0, 'rgba(255, 214, 102, 0.55)');
-    rad.addColorStop(1, 'rgba(40, 4, 18, 0.0)');
-    ctx.fillStyle = rad;
-    ctx.fillRect(18, 18, 476, 220);
-
-    ctx.fillStyle = '#ffdf78';
-    ctx.font = '800 18px Inter, Arial, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText('★  BROADWAY MUSICAL SPECTACULAR  ★', 256, 46);
-
-    ctx.fillStyle = '#ffffff';
-    ctx.font = '900 44px Inter, Arial, sans-serif';
-    ctx.fillText('METROPOLIS', 256, 102);
-
-    ctx.fillStyle = '#ffc845';
-    ctx.font = '900 26px Inter, Arial, sans-serif';
-    ctx.fillText('LIVE ON BROADWAY', 256, 138);
-
-    ctx.fillStyle = '#18040a';
-    ctx.fillRect(36, 158, 440, 42);
-    ctx.strokeStyle = '#ffcf58';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(36, 158, 440, 42);
-
-    ctx.fillStyle = '#fff3c4';
-    ctx.font = '800 20px Inter, Arial, sans-serif';
-    ctx.fillText('★★★★★  "UNFORGETTABLE!" — NY TIMES', 256, 185);
-
-    ctx.fillStyle = '#ffae42';
-    ctx.font = '700 16px JetBrains Mono, monospace';
-    ctx.fillText('MAJESTIC THEATRE · 44TH ST WEST · TONIGHT 8 PM', 256, 226);
-  } else if (themeKey === 1) {
-    // Theme 1: NASDAQ / Wall St MarketSite Financial Display
-    const grad = ctx.createLinearGradient(0, 0, 0, 256);
-    grad.addColorStop(0, '#04122c');
-    grad.addColorStop(1, '#08264e');
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, 512, 256);
-
-    // Financial terminal grid lines
-    ctx.strokeStyle = 'rgba(56, 189, 248, 0.18)';
-    ctx.lineWidth = 1;
-    for (let x = 32; x < 512; x += 32) {
-      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, 256); ctx.stroke();
-    }
-    for (let y = 32; y < 256; y += 32) {
-      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(512, y); ctx.stroke();
-    }
-
-    // Header bar
-    ctx.fillStyle = '#0052cc';
-    ctx.fillRect(0, 0, 512, 46);
-    ctx.fillStyle = '#ffffff';
-    ctx.font = '900 24px Inter, Arial, sans-serif';
-    ctx.textAlign = 'left';
-    ctx.fillText('NASDAQ · TIMES SQ MARKETSITE', 18, 31);
-    ctx.fillStyle = '#00f5a0';
-    ctx.textAlign = 'right';
-    ctx.font = '800 20px JetBrains Mono, monospace';
-    ctx.fillText('LIVE ▲ +2.84%', 494, 31);
-
-    // Bullish emerald chart area & line
-    const pts = [
-      [24, 182], [75, 168], [125, 174], [175, 142], [225, 148],
-      [280, 116], [335, 124], [390, 92], [445, 78], [492, 64]
-    ];
-    ctx.beginPath();
-    ctx.moveTo(pts[0][0], 200);
-    for (const [px, py] of pts) ctx.lineTo(px, py);
-    ctx.lineTo(pts[pts.length - 1][0], 200);
-    ctx.closePath();
-    const areaGrad = ctx.createLinearGradient(0, 60, 0, 200);
-    areaGrad.addColorStop(0, 'rgba(0, 245, 160, 0.50)');
-    areaGrad.addColorStop(1, 'rgba(0, 245, 160, 0.02)');
-    ctx.fillStyle = areaGrad;
-    ctx.fill();
-
-    ctx.beginPath();
-    for (let i = 0; i < pts.length; i++) {
-      if (i === 0) ctx.moveTo(pts[i][0], pts[i][1]);
-      else ctx.lineTo(pts[i][0], pts[i][1]);
-    }
-    ctx.strokeStyle = '#00f5a0';
-    ctx.lineWidth = 5;
-    ctx.stroke();
-
-    // Bottom stock ticker ribbon
-    ctx.fillStyle = '#030b1a';
-    ctx.fillRect(0, 206, 512, 50);
-    ctx.fillStyle = '#38d8ff';
-    ctx.font = '800 20px JetBrains Mono, monospace';
-    ctx.textAlign = 'center';
-    ctx.fillText('NDX 21,490 ▲   SPX 6,145 ▲   DOW 44,880 ▲   NYC 100 ▲', 256, 238);
-  } else if (themeKey === 2) {
-    // Theme 2: Gotham Cola / Iconic Red & White Wave Billboard
-    const grad = ctx.createLinearGradient(0, 0, 512, 256);
-    grad.addColorStop(0, '#b8061e');
-    grad.addColorStop(0.5, '#e6122e');
-    grad.addColorStop(1, '#9e0418');
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, 512, 256);
-
-    // Classic dynamic white wave ribbon
-    ctx.fillStyle = '#ffffff';
-    ctx.beginPath();
-    ctx.moveTo(0, 170);
-    ctx.bezierCurveTo(160, 110, 340, 225, 512, 148);
-    ctx.lineTo(512, 192);
-    ctx.bezierCurveTo(340, 260, 160, 150, 0, 210);
-    ctx.closePath();
-    ctx.fill();
-
-    ctx.fillStyle = '#ffe082';
-    ctx.font = '800 18px Inter, Arial, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText('ICE COLD · EST. 1898 · NEW YORK', 256, 48);
-
-    ctx.fillStyle = '#ffffff';
-    ctx.font = 'italic 900 54px Georgia, serif';
-    ctx.fillText('Gotham Cola', 256, 108);
-
-    ctx.fillStyle = '#fff5cc';
-    ctx.font = '800 22px Inter, Arial, sans-serif';
-    ctx.fillText('TASTE THE MANHATTAN SKYLINE', 256, 148);
-
-    ctx.fillStyle = '#ffffff';
-    ctx.font = '700 17px JetBrains Mono, monospace';
-    ctx.fillText('REFRESHING TIMES SQUARE 24 HOURS A DAY', 256, 236);
-  } else if (themeKey === 3) {
-    // Theme 3: Fifth Avenue Luxury Watch & Couture ("CHRONO GENÈVE")
-    const grad = ctx.createRadialGradient(256, 128, 16, 256, 128, 260);
-    grad.addColorStop(0, '#2c2218');
-    grad.addColorStop(1, '#0c0908');
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, 512, 256);
-
-    ctx.strokeStyle = '#d4af37';
-    ctx.lineWidth = 4;
-    ctx.strokeRect(12, 12, 488, 232);
-
-    // Watch dial on left
-    const cx = 118;
-    const cy = 128;
-    ctx.beginPath();
-    ctx.arc(cx, cy, 74, 0, Math.PI * 2);
-    ctx.fillStyle = '#14110e';
-    ctx.fill();
-    ctx.lineWidth = 6;
-    ctx.strokeStyle = '#e5c158';
-    ctx.stroke();
-
-    // Hour tick marks & hands
-    for (let h = 0; h < 12; h++) {
-      const a = (h * Math.PI) / 6;
-      ctx.beginPath();
-      ctx.moveTo(cx + Math.cos(a) * 58, cy + Math.sin(a) * 58);
-      ctx.lineTo(cx + Math.cos(a) * 67, cy + Math.sin(a) * 67);
-      ctx.strokeStyle = '#f5d97e';
-      ctx.lineWidth = h % 3 === 0 ? 4 : 2;
-      ctx.stroke();
-    }
-    ctx.beginPath();
-    ctx.moveTo(cx, cy);
-    ctx.lineTo(cx - 26, cy - 34);
-    ctx.moveTo(cx, cy);
-    ctx.lineTo(cx + 44, cy - 22);
-    ctx.strokeStyle = '#ffe89e';
-    ctx.lineWidth = 4;
-    ctx.stroke();
-
-    // Luxury typography on right
-    ctx.fillStyle = '#f5d97e';
-    ctx.textAlign = 'center';
-    ctx.font = '800 16px Inter, Arial, sans-serif';
-    ctx.fillText('SWISS MANUFACTURE · SINCE 1884', 345, 66);
-
-    ctx.fillStyle = '#ffffff';
-    ctx.font = '900 38px Georgia, serif';
-    ctx.fillText('CHRONO GENÈVE', 345, 114);
-
-    ctx.fillStyle = '#e5c158';
-    ctx.font = '700 22px Inter, Arial, sans-serif';
-    ctx.fillText('FIFTH AVENUE FLAGSHIP', 345, 154);
-
-    ctx.fillStyle = '#c8b89a';
-    ctx.font = '600 16px JetBrains Mono, monospace';
-    ctx.fillText('5TH AVE AT 57TH ST · NEW YORK', 345, 202);
-  } else if (themeKey === 4) {
-    // Theme 4: NY1 Live Skyline News & Weather Broadcast
-    const grad = ctx.createLinearGradient(0, 0, 512, 200);
-    grad.addColorStop(0, '#0a2246');
-    grad.addColorStop(1, '#1c569e');
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, 512, 256);
-
-    // Top live header
-    ctx.fillStyle = '#07162e';
-    ctx.fillRect(0, 0, 512, 48);
-    ctx.fillStyle = '#38b6ff';
-    ctx.font = '900 26px Inter, Arial, sans-serif';
-    ctx.textAlign = 'left';
-    ctx.fillText('NY1 NEWS · LIVE MANHATTAN', 18, 33);
-
-    ctx.fillStyle = '#ffd15c';
-    ctx.textAlign = 'right';
-    ctx.font = '800 22px JetBrains Mono, monospace';
-    ctx.fillText('NYC 72°F ☀', 492, 33);
-
-    // Center headline graphic
-    ctx.fillStyle = '#ffffff';
-    ctx.textAlign = 'center';
-    ctx.font = '900 36px Inter, Arial, sans-serif';
-    ctx.fillText('MIDTOWN SKYLINE REPORT', 256, 104);
-    ctx.fillStyle = '#a8dcff';
-    ctx.font = '700 20px Inter, Arial, sans-serif';
-    ctx.fillText('CLEAR SKIES FROM HARLEM TO BATTERY PARK', 256, 138);
-
-    // Red BREAKING NEWS badge
-    ctx.fillStyle = '#e6192e';
-    ctx.fillRect(20, 154, 178, 34);
-    ctx.fillStyle = '#ffffff';
-    ctx.font = '900 19px Inter, Arial, sans-serif';
-    ctx.fillText('BREAKING NEWS', 109, 177);
-
-    // White Broadcast Lower-Third Chyron
-    ctx.fillStyle = '#f4f7fb';
-    ctx.fillRect(0, 188, 512, 68);
-    ctx.fillStyle = '#0a192f';
-    ctx.font = '900 24px Inter, Arial, sans-serif';
-    ctx.textAlign = 'left';
-    ctx.fillText('EXPRESS: 5TH AVE & BROADWAY CLEAR', 20, 220);
-    ctx.fillStyle = '#c8102e';
-    ctx.font = '800 16px JetBrains Mono, monospace';
-    ctx.fillText('LIVE HD · EMPIRE STATE · CHRYSLER · ONE WTC · CENTRAL PARK', 20, 244);
-  } else {
-    // Theme 5: Times Square Neon Nights & TKTS Booth
-    const grad = ctx.createLinearGradient(0, 0, 512, 256);
-    grad.addColorStop(0, '#1e0638');
-    grad.addColorStop(0.5, '#6a0dad');
-    grad.addColorStop(1, '#d81b60');
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, 512, 256);
-
-    // Glowing neon sun disc
-    ctx.beginPath();
-    ctx.arc(256, 118, 72, 0, Math.PI * 2);
-    const sunGrad = ctx.createLinearGradient(256, 46, 256, 190);
-    sunGrad.addColorStop(0, '#fff176');
-    sunGrad.addColorStop(1, '#ff6f00');
-    ctx.fillStyle = sunGrad;
-    ctx.fill();
-
-    // Stylized dark skyline silhouette across the neon sun
-    ctx.fillStyle = '#160428';
-    const bars = [
-      [30, 60], [65, 85], [95, 55], [130, 110], [168, 75], [202, 138],
-      [242, 156], [282, 125], [320, 88], [358, 118], [398, 70], [435, 95], [470, 65]
-    ];
-    for (const [bx, bh] of bars) {
-      ctx.fillRect(bx, 198 - bh, 28, bh);
-    }
-
-    ctx.fillStyle = '#ffffff';
-    ctx.textAlign = 'center';
-    ctx.font = '900 42px Inter, Arial, sans-serif';
-    ctx.fillText('TIMES SQUARE NYC', 256, 62);
-
-    ctx.fillStyle = '#ffea70';
-    ctx.font = '800 22px Inter, Arial, sans-serif';
-    ctx.fillText('THE CROSSROADS OF THE WORLD', 256, 94);
-
-    ctx.fillStyle = '#120322';
-    ctx.fillRect(0, 198, 512, 58);
-    ctx.fillStyle = '#ff4081';
-    ctx.font = '900 24px JetBrains Mono, monospace';
-    ctx.fillText('TKTS · 50% OFF BROADWAY SHOWS TONIGHT', 256, 234);
-  }
-
-  const tex = new THREE.CanvasTexture(c);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  tex.needsUpdate = true;
-  return tex;
-}
-
-function createBillboardMaterial(themeIndex = 0) {
-  const key = ((themeIndex % 6) + 6) % 6;
-  if (_billboardCache.has(key)) return _billboardCache.get(key);
-
-  const mat = new THREE.MeshBasicNodeMaterial();
-  const canvasTex = createBillboardCanvasTexture(key);
-
-  mat.colorNode = Fn(() => {
-    const p = uv();
-    const t = time;
-
-    const basePoster = texture(canvasTex, p).xyz;
-
-    // Fine RGB LED matrix pitch & cabinet bezel border
-    const ledScanX = sin(p.x.mul(360.0)).mul(0.035).add(0.965);
-    const ledScanY = sin(p.y.mul(200.0)).mul(0.045).add(0.955);
-    const borderMask = smoothstep(0.0, 0.018, p.x)
-      .mul(smoothstep(0.0, 0.018, p.y))
-      .mul(float(1.0).sub(smoothstep(0.982, 1.0, p.x)))
-      .mul(float(1.0).sub(smoothstep(0.982, 1.0, p.y)));
-
-    // Animated stage spotlight sweep & scrolling LED ticker pulse
-    const sweepPos = sin(t.mul(1.15 + key * 0.18)).mul(0.38).add(0.5);
-    const spotlightSweep = pow(clamp(float(1.0).sub(abs(p.x.sub(sweepPos)).mul(2.4)), 0.0, 1.0), 3.0).mul(0.28);
-    const tickerBand = float(1.0).sub(step(0.20, p.y));
-    const tickerPulse = smoothstep(0.2, 0.8, sin(p.x.mul(42.0).add(t.mul(5.2)))).mul(tickerBand).mul(0.22);
-
-    const animatedCol = basePoster
-      .mul(float(1.18).add(spotlightSweep))
-      .add(basePoster.mul(tickerPulse));
-
-    return animatedCol.mul(ledScanX).mul(ledScanY).mul(borderMask);
-  })();
-
-  _billboardCache.set(key, mat);
   return mat;
 }
 
@@ -3028,7 +2870,6 @@ export {
   createRoadPaintMaterial,
   createSidewalkMaterial,
   createCurbMaterial,
-  createBillboardMaterial,
   createWaterMaterial,
   createParkLawnMaterial,
   createSteamMaterial,
@@ -3036,3 +2877,116 @@ export {
   createContactShadowMaterial,
   createCarFlareMaterial
 };
+
+// =====================================================================================================================
+// Gaps #3 / #2 / #7 (ground agent): cast-iron covers on the roadway (js/vlc-ground-decals.js)
+// =====================================================================================================================
+
+/**
+ * Storm drains, manholes and utility lids: instanced flat quads (uv across the cover) with a per-instance `kind`
+ * (0 Valencian kerb inlet, 1 small grate, 2 large grate, 3 square grate, 4 round grate, 5 manhole, 6 utility lid).
+ * Dark cast iron with near-black openings; the round ones are cut out of their quad.
+ */
+function createGroundDecalMaterial() {
+  const mat = new THREE.MeshStandardNodeMaterial({ metalness: 0.0, roughness: 0.6 });
+  mat.polygonOffset = true;
+  mat.polygonOffsetFactor = -2;
+  mat.polygonOffsetUnits = -2;
+  mat.alphaTest = 0.5;
+  const kind = attribute('kind', 'float');
+  const is = (k) => float(1.0).sub(step(0.5, abs(kind.sub(k))));
+  const p = uv().sub(0.5);
+  const r = length(p).mul(2.0);
+  const round = is(4).add(is(5));
+  const box = max(abs(p.x), abs(p.y)).mul(2.0);
+
+  // openings (1 = hole): slots across the grates, a grid in the square & round grates, none on the lids
+  const openings = Fn(() => {
+    const slots = mix(mix(float(9.0), float(7.0), is(1)), float(12.0), is(2));
+    const slot = step(0.38, fract(uv().x.mul(slots))).mul(step(abs(p.y), 0.36)).mul(step(abs(p.x), 0.44));
+    const grid = step(0.3, fract(uv().x.mul(6.0))).mul(step(0.3, fract(uv().y.mul(6.0)))).mul(step(box, 0.84));
+    const roundGrid = step(0.3, fract(uv().x.mul(7.0))).mul(step(0.3, fract(uv().y.mul(7.0)))).mul(step(r, 0.8));
+    return slot.mul(step(kind, 2.5)).add(grid.mul(is(3))).add(roundGrid.mul(is(4)));
+  })();
+
+  mat.colorNode = Fn(() => {
+    const wx = positionWorld.x;
+    const wz = positionWorld.z;
+    const rust = noise2D(vec2(wx.mul(9.0), wz.mul(9.0)));
+    const iron = mix(color(0x2c2926), color(0x4a4038), rust.mul(0.6));
+    // manhole: a raised diamond pattern inside a plain rim; lids: a lighter worn plate in an iron frame
+    const d = vec2(p.x.add(p.y), p.x.sub(p.y)).mul(9.0);
+    const studs = step(0.6, fract(d.x)).add(step(0.6, fract(d.y))).clamp(0.0, 1.0).mul(step(r, 0.86));
+    const manhole = mix(iron, iron.mul(1.35), studs.mul(0.6));
+    const lid = mix(iron.mul(1.2), color(0x6b6660), step(box, 0.8).mul(0.6));
+    const cover = mix(mix(iron, manhole, is(5)), lid, is(6));
+    return mix(cover, color(0x0d0c0b), openings);
+  })();
+  mat.opacityNode = mix(float(1.0), step(r, 1.0), round);
+  mat.roughnessNode = mix(float(0.55), float(0.4), smoothstep(0.2, 0.8, cityUniforms.uRoadWetness));
+  mat.normalNode = Fn(() => bumpNormal(openings.mul(-0.01)))();
+  mat.aoNode = groundAONode();
+  mat.emissiveNode = groundBounce(mat.colorNode);
+  return mat;
+}
+
+/**
+ * Street-floor sky visibility & bounce light for the ground materials (asphalt, paint, sidewalks, kerbs, covers):
+ * the engine has no bounce light, so a street floor in shade saw only the blue sky through the canyon AO (0.34) and
+ * read near-black blue, where Street View's shaded streets are mid grey. The ground keeps most of its sky light and
+ * gets the light thrown back by the sunlit facades and paving around it (a share of the sun's colour on its albedo),
+ * fading out at night.
+ */
+function groundAONode() {
+  return float(0.8);
+}
+function groundBounce(albedo) {
+  const day = float(1.0).sub(smoothstep(0.35, 1.3, cityUniforms.uInteriorGlow));
+  return vec3(albedo).mul(cityUniforms.uSunColor).mul(GROUND_BOUNCE).mul(day);
+}
+const GROUND_BOUNCE = uniform(0.25);
+
+/**
+ * Gap #7: the old town's stone-paved lanes (js/road-paint.js buildStoneLanes, js/vlc-stone-lanes.js): flat strips over
+ * the asphalt with a per-vertex `paving` (0 granite setts ~12 x 18 cm in staggered rows, 1 sawn limestone slabs
+ * 40 x 60 cm), worn smooth & darker down the middle where wheels and feet go, damp like the roadway after rain.
+ */
+function createStoneLaneMaterial() {
+  const mat = new THREE.MeshStandardNodeMaterial({ metalness: 0.0, roughness: 0.82 });
+  mat.polygonOffset = true;
+  mat.polygonOffsetFactor = -1;
+  mat.polygonOffsetUnits = -1;
+  const paving = attribute('paving', 'float');
+  const pixelSize = length(fwidth(positionWorld.xz));
+  const wet = roadWetMasks(roadPuddleField(positionWorld.x, positionWorld.z), 0.04);
+  const pattern = Fn(() => {
+    const xz = positionWorld.xz;
+    const slab = step(0.5, paving);
+    const cell = mix(vec2(0.18, 0.12), vec2(0.6, 0.4), slab);
+    const row = floor(xz.y.div(cell.y));
+    const shifted = vec2(xz.x.add(row.mul(cell.x).mul(0.5)), xz.y); // running bond
+    const id = floor(shifted.div(cell));
+    const f = fract(shifted.div(cell));
+    const edge = min(min(f.x, float(1.0).sub(f.x)).mul(cell.x), min(f.y, float(1.0).sub(f.y)).mul(cell.y));
+    const jw = mix(float(0.012), float(0.004), slab);
+    const joint = float(1.0).sub(smoothstep(jw, jw.add(0.01), edge)).mul(smoothstep(0.03, 0.008, pixelSize));
+    return vec3(hash2D(id), joint, slab);
+  })();
+  mat.colorNode = Fn(() => {
+    const h = pattern.x;
+    const slab = pattern.z;
+    const sett = mix(color(0x6f675d), color(0x8a8174), h);
+    const stone = mix(color(0x8a8277), color(0x9e968a), h);
+    const base = mix(sett, stone, slab);
+    const grime = smoothstep(0.3, 0.8, noise2D(positionWorld.xz.mul(0.35))).mul(0.15);
+    return base.mul(float(1.0).sub(grime)).mul(float(1.0).sub(pattern.y.mul(0.45)))
+      .mul(mix(float(1.0), float(0.72), max(wet.x, wet.y))).mul(mix(float(1.0), float(0.85), wet.z));
+  })();
+  mat.roughnessNode = mix(mix(float(0.82), float(0.5), wet.z), float(0.15), wet.y);
+  mat.normalNode = Fn(() => bumpNormal(pattern.y.mul(-0.006).mul(float(1.0).sub(wet.y))))();
+  mat.aoNode = groundAONode();
+  mat.emissiveNode = groundBounce(mat.colorNode);
+  return mat;
+}
+
+export { createGroundDecalMaterial, createStoneLaneMaterial, GROUND_BOUNCE };

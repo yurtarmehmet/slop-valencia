@@ -379,6 +379,14 @@ body.hud-minimized .toolbar > :not(#btn-toggle-hud) {
   text-underline-offset: 3px;
 }
 
+.brand-credits {
+  margin-top: 3px;
+  max-width: 320px;
+  font-size: 9.5px;
+  line-height: 1.35;
+  opacity: 0.62;
+}
+
 .brand-subtitle {
   font-size: 11.5px;
   line-height: 1.4;

@@ -59,28 +59,30 @@ const MAP = {
 
 // Landmarks modelled by landmarks.js on their real OpenStreetMap lots (outlined in amber)
 const MODELLED_LANDMARKS = [
-  'Basílica de la Sagrada Família', 'Casa Batlló', 'Casa Milà', 'Torre Glòries', 'Arc de Triomf', 'Monument a Colom',
-  'W Barcelona', 'Hotel Arts', 'Torre Mapfre', 'Catedral de la Santa Creu i Santa Eulàlia', 'Basílica de Santa Maria del Mar'
+  'Catedral de València', 'el Micalet', 'Torres dels Serrans', 'Torres de Quart', 'Llotja de la Seda', 'Mercat Central',
+  'Estació del Nord', 'Plaça de Bous de València', "L'Hemisfèric", 'Palau de les Arts Reina Sofia',
+  'Museu de les Ciències «Príncep Felip»', "L'Umbracle", 'Mestalla', 'Torre de Francia', 'Veles e Vents',
+  'Basílica de la Mare de Déu dels Desemparats', 'Mercat de Colón', 'Edifici de Correus i Telègrafs', 'Mercat de Russafa'
 ];
 
 // District (0), sea & port (1) & neighbourhood (2) names at their real places
 const AREA_LABELS = [
-  ["L'EIXAMPLE", 2.1650, 41.3925, 0], ['CIUTAT VELLA', 2.1745, 41.3825, 0], ['SANT MARTÍ', 2.1990, 41.4030, 0], ['GRÀCIA', 2.1560, 41.4040, 0],
-  ['SANTS-MONTJUÏC', 2.1450, 41.3700, 0], ['LES CORTS', 2.1270, 41.3860, 0], ['SARRIÀ-SANT GERVASI', 2.1300, 41.4020, 0],
-  ['HORTA-GUINARDÓ', 2.1650, 41.4200, 0], ["L'HOSPITALET", 2.1150, 41.3650, 0],
-  ['MAR MEDITERRÀNIA', 2.2050, 41.3750, 1], ['PORT VELL', 2.1830, 41.3730, 1], ['PORT DE BARCELONA', 2.1650, 41.3500, 1],
-  ['EL RAVAL', 2.1680, 41.3800, 2], ['BARRI GÒTIC', 2.1760, 41.3830, 2], ['EL BORN', 2.1820, 41.3850, 2], ['LA BARCELONETA', 2.1900, 41.3790, 2],
-  ['POBLENOU', 2.2000, 41.3990, 2], ['VILA OLÍMPICA', 2.1960, 41.3900, 2], ['SANT ANTONI', 2.1610, 41.3790, 2], ['POBLE-SEC', 2.1600, 41.3720, 2],
-  ['MONTJUÏC', 2.1600, 41.3640, 2], ['LA SAGRADA FAMÍLIA', 2.1760, 41.4030, 2], ['FORT PIENC', 2.1840, 41.3950, 2],
-  ["DRETA DE L'EIXAMPLE", 2.1690, 41.3940, 2], ["ESQUERRA DE L'EIXAMPLE", 2.1550, 41.3870, 2], ['SANTS', 2.1370, 41.3770, 2],
-  ['VILA DE GRÀCIA', 2.1570, 41.4010, 2], ['EL CLOT', 2.1890, 41.4090, 2], ['DIAGONAL MAR', 2.2140, 41.4080, 2], ['COLLSEROLA', 2.1100, 41.4200, 2]
+  ['CIUTAT VELLA', -0.3770, 39.4745, 0], ["L'EIXAMPLE", -0.3700, 39.4650, 0], ['EXTRAMURS', -0.3880, 39.4690, 0],
+  ['EL PLA DEL REAL', -0.3600, 39.4780, 0], ['ALGIRÓS', -0.3460, 39.4740, 0], ['CAMINS AL GRAU', -0.3480, 39.4630, 0],
+  ['QUATRE CARRERES', -0.3650, 39.4540, 0], ['POBLATS MARÍTIMS', -0.3320, 39.4650, 0], ['LA SAÏDIA', -0.3760, 39.4860, 0],
+  ['BENIMACLET', -0.3590, 39.4880, 0], ['CAMPANAR', -0.3960, 39.4840, 0],
+  ['MAR MEDITERRÀNIA', -0.3050, 39.4700, 1], ['PORT DE VALÈNCIA', -0.3150, 39.4450, 1], ['LA MARINA', -0.3240, 39.4580, 1],
+  ['JARDÍ DEL TÚRIA', -0.3660, 39.4720, 1],
+  ['EL CARME', -0.3810, 39.4785, 2], ['LA SEU', -0.3750, 39.4760, 2], ['RUSSAFA', -0.3730, 39.4620, 2], ['EL CABANYAL', -0.3320, 39.4690, 2],
+  ['LA MALVA-ROSA', -0.3300, 39.4800, 2], ['EL GRAU', -0.3350, 39.4610, 2], ['NATZARET', -0.3340, 39.4500, 2], ['MESTALLA', -0.3580, 39.4730, 2],
+  ['EL PLA DEL REMEI', -0.3700, 39.4685, 2], ['PENYA-ROJA', -0.3480, 39.4600, 2], ['MONTOLIVET', -0.3620, 39.4560, 2]
 ].map(([text, lon, lat, kind]) => {
   const p = lonLatToWorld(lon, lat);
   return [text, Math.round(p.x), Math.round(p.z), kind];
 });
 
 // Shorter map names for a few real street names
-const LABEL_ALIAS = { 'Gran Via de les Corts Catalanes': 'Gran Via', 'Avinguda Diagonal': 'Diagonal' };
+const LABEL_ALIAS = { 'Gran Via del Marqués del Túria': 'G.V. Marqués del Túria', 'Gran Via de Ferran el Catòlic': 'G.V. Ferran el Catòlic', 'Gran Via de les Germanies': 'G.V. Germanies' };
 
 // ---------------------------------------------------------------------------------------------------------------------
 // World-space vector layers: built once into Path2D objects (world metres) and drawn through a canvas transform
@@ -441,9 +443,9 @@ class CityMapSystem {
     this.searchHighlight = '';
     this.searchPath = null;
     this.textWidths = new Map();
-    // Start with a waypoint at the Sagrada Família
-    const sf = CITY_LANDMARKS.find((l) => l.id === 'sagrada') || { x: 0, z: 0 };
-    this.waypoint = { x: sf.x, z: sf.z, name: 'Sagrada Família' };
+    // Start with a waypoint at the Ciutat de les Arts i les Ciències
+    const sf = CITY_LANDMARKS.find((l) => l.id === 'cac') || { x: 0, z: 0 };
+    this.waypoint = { x: sf.x, z: sf.z, name: 'Ciutat de les Arts i les Ciències' };
 
     // Street names measured before the web font arrived would be spaced for the fallback font: measure & draw again
     if (document.fonts) {

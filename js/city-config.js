@@ -246,41 +246,87 @@ function blockAt(x, z) {
 // Neighbourhoods (barris) by position in the grid frame, for building profiles, labels & the maps
 // ---------------------------------------------------------------------------------------------------------------------
 const P = Object.fromEntries(Object.entries(GEO.points).map(([k, [x, z]]) => [k, { x, z }]));
-// The old town's walls ran where the Rondes and Paral·lel are now: south of a line from Plaça Universitat through
-// Plaça de Catalunya to the Arc de Triomf, between Paral·lel and Ciutadella
-function inCiutatVella(x, z) {
-  const north = (x2) => (x2 < P.placaCatalunya.x ? 140 + (P.placaCatalunya.x - x2) * 0.08 : 140 - (x2 - P.placaCatalunya.x) * 0.06);
-  return z > north(x) && x > -1050 + (z - 400) * 0.35 && x < 900 && z < 1500;
+// València's barris at their real centres: each block takes the nearest one's name and the building profile that fits
+// it (buildings.js reads the profile ids it shares with the engine's Barcelona roots: 'gotic' is a walled old town of
+// narrow streets, 'barceloneta' a seaside quarter of low terraced houses, 'gracia' an old village swallowed by the city,
+// 'vila_olimpica' new towers, 'poblenou' docks & sheds, 'eixample' the chamfered Ensanche)
+const BARRIS = [
+  ['El Carme', -0.3810, 39.4782, 'gotic'], ['La Seu', -0.3752, 39.4757, 'gotic'], ['La Xerea', -0.3715, 39.4740, 'born'],
+  ['El Mercat', -0.3790, 39.4735, 'raval'], ['Sant Francesc', -0.3765, 39.4695, 'gotic'], ['El Pilar', -0.3830, 39.4722, 'raval'],
+  ['Russafa', -0.3730, 39.4625, 'eixample'], ['El Pla del Remei', -0.3700, 39.4685, 'eixample'], ['Gran Via', -0.3640, 39.4645, 'eixample'],
+  ['El Botànic', -0.3885, 39.4760, 'sant_antoni'], ['La Roqueta', -0.3800, 39.4655, 'sant_antoni'], ['La Petxina', -0.3920, 39.4720, 'sant_antoni'],
+  ['Arrancapins', -0.3870, 39.4650, 'sant_antoni'], ['Campanar', -0.3950, 39.4830, 'gracia'], ['Marxalenes', -0.3850, 39.4860, 'sants'],
+  ['Morvedre', -0.3740, 39.4840, 'sants'], ['La Trinitat', -0.3700, 39.4810, 'sants'], ['Torrefiel', -0.3760, 39.4950, 'sants'],
+  ['Orriols', -0.3650, 39.4920, 'sants'], ['Benimaclet', -0.3590, 39.4870, 'gracia'], ['Exposició', -0.3640, 39.4750, 'eixample'],
+  ['Mestalla', -0.3580, 39.4730, 'eixample'], ['Jaume Roig', -0.3600, 39.4800, 'eixample'], ['Ciutat Universitària', -0.3530, 39.4790, 'glories'],
+  ['Albors', -0.3520, 39.4680, 'sants'], ['Aiora', -0.3430, 39.4640, 'sants'], ['Penya-roja', -0.3480, 39.4600, 'vila_olimpica'],
+  ['Ciutat de les Arts i de les Ciències', -0.3530, 39.4550, 'vila_olimpica'], ['Montolivet', -0.3620, 39.4560, 'sants'],
+  ['En Corts', -0.3730, 39.4560, 'sants'], ['Malilla', -0.3700, 39.4490, 'sants'], ['Jesús', -0.3880, 39.4590, 'sants'],
+  ['Beteró', -0.3390, 39.4720, 'sants'], ['El Cabanyal', -0.3315, 39.4690, 'barceloneta'], ['El Grau', -0.3340, 39.4610, 'barceloneta'],
+  ['La Malva-rosa', -0.3300, 39.4800, 'barceloneta'], ['Natzaret', -0.3340, 39.4500, 'barceloneta'], ['Port de València', -0.3200, 39.4500, 'poblenou']
+].map(([name, lon, lat, profile]) => ({ name, profile, ...lonLatToWorld(lon, lat) }));
+function barriAt(x, z) {
+  let best = BARRIS[0], bd = Infinity;
+  for (const b of BARRIS) {
+    const d = (b.x - x) ** 2 + (b.z - z) ** 2;
+    if (d < bd) { bd = d; best = b; }
+  }
+  return best;
 }
 function districtAt(x, z) {
-  if (x < -1300 && z > 350) return 'montjuic';
-  if (x < -2250) return 'sants';
-  if (z > 1450 && x < 1250) return x < -350 ? 'port' : 'barceloneta';
-  if (inCiutatVella(x, z)) {
-    if (x < P.liceu.x - 40) return 'raval';
-    if (x > P.santaMariaMar.x - 260) return 'born';
-    return 'gotic';
-  }
-  if (x < -1050 && z > 150) return 'poble_sec';
-  if (x > 1300 && z > 800) return x > 2300 ? 'poblenou' : 'vila_olimpica';
-  if (x > 2600) return 'poblenou';
-  if (z < -1350 && x > -900 && x < 1400) return 'gracia';
-  if (z < -1450) return 'sant_gervasi';
-  if (x > 1800 && z < -300) return 'glories';
-  if (x < -1500) return 'sant_antoni';
-  return 'eixample';
+  return barriAt(x, z).profile;
 }
 for (const b of BLOCKS) b.district = districtAt(b.cx, b.cz);
-const DISTRICT_NAMES = {
-  montjuic: 'Montjuïc', sants: 'Sants', port: 'Port Vell', barceloneta: 'La Barceloneta', raval: 'El Raval', born: 'El Born',
-  gotic: 'Barri Gòtic', poble_sec: 'Poble-sec', vila_olimpica: 'Vila Olímpica', poblenou: 'Poblenou', gracia: 'Gràcia',
-  sant_gervasi: 'Sant Gervasi', glories: 'Glòries', sant_antoni: 'Sant Antoni', eixample: "L'Eixample"
-};
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Landmarks (real footprints from OpenStreetMap: centre, grid-aligned width x depth, height) & teleports
 // ---------------------------------------------------------------------------------------------------------------------
 const LANDMARK_SITES = GEO.landmarks;
+// Round landmarks whose OSM outline takes in more than the round building (the bullring's includes its annex block):
+// the circle most of the outline's corners lie on (every circle through three corners, the one with the most corners
+// within 1.5 m), refitted by least squares to those corners
+function fitCircle(flat) {
+  const pts = [];
+  for (let i = 0; i + 1 < flat.length; i += 2) pts.push([flat[i], flat[i + 1]]);
+  const through = ([ax, az], [bx, bz], [cx, cz]) => {
+    const d = 2 * (ax * (bz - cz) + bx * (cz - az) + cx * (az - bz));
+    if (Math.abs(d) < 1e-6) return null;
+    const a2 = ax * ax + az * az, b2 = bx * bx + bz * bz, c2 = cx * cx + cz * cz;
+    const x = (a2 * (bz - cz) + b2 * (cz - az) + c2 * (az - bz)) / d;
+    const z = (a2 * (cx - bx) + b2 * (ax - cx) + c2 * (bx - ax)) / d;
+    return { x, z, r: Math.hypot(ax - x, az - z) };
+  };
+  const on = (c) => pts.filter(([x, z]) => Math.abs(Math.hypot(x - c.x, z - c.z) - c.r) < 1.5);
+  let best = null, bestN = 0;
+  for (let i = 0; i < pts.length; i++) {
+    for (let j = i + 1; j < pts.length; j++) {
+      for (let k = j + 1; k < pts.length; k++) {
+        const c = through(pts[i], pts[j], pts[k]);
+        if (!c || c.r > 200) continue;
+        const n = on(c).length;
+        if (n > bestN) { best = c; bestN = n; }
+      }
+    }
+  }
+  if (!best || bestN < 6) return null;
+  // Gauss-Newton on the inliers: centre & radius minimising the squared distances to the circle
+  const inl = on(best);
+  let { x, z } = best;
+  for (let it = 0; it < 20; it++) {
+    const ds = inl.map(([px, pz]) => Math.hypot(px - x, pz - z));
+    const r = ds.reduce((t, d) => t + d, 0) / ds.length;
+    let gx = 0, gz = 0;
+    inl.forEach(([px, pz], q) => { gx += (x - px) / ds[q] * (ds[q] - r); gz += (z - pz) / ds[q] * (ds[q] - r); });
+    x -= gx / inl.length; z -= gz / inl.length;
+  }
+  const r = inl.reduce((t, [px, pz]) => t + Math.hypot(px - x, pz - z), 0) / inl.length;
+  return { x, z, r };
+}
+const LANDMARK_CIRCLES = {};
+for (const name of ['Plaça de Bous de València']) {
+  const c = LANDMARK_SITES[name]?.ring && fitCircle(LANDMARK_SITES[name].ring);
+  if (c) LANDMARK_CIRCLES[name] = c;
+}
 const heading = (from, to) => Math.atan2(to.x - from.x, to.z - from.z);
 // The nearest point on the centreline of a street at least `minWidth` wide (curb to curb) within 120 m of (x, z)
 function snapToStreet(x, z, minWidth = 7) {
@@ -306,40 +352,44 @@ const arrival = (to, dx, dz) => {
   return { ...at, heading: heading(at, to) };
 };
 const TELEPORT_LOCATIONS = {
-  sagrada: arrival(P.sagradaFamilia, -40, 150),
-  catalunya: arrival(P.placaCatalunya, 0, -150),
-  batllo: arrival(P.casaBatllo, -60, 70),
-  pedrera: arrival(P.pedrera, -60, 80),
-  arc: arrival(P.arcTriomf, 40, 150),
-  rambla: arrival(P.liceu, -30, -100),
-  glories: arrival(P.torreGlories, -160, 100),
-  colom: arrival(P.colom, 0, -110),
-  barceloneta: arrival(P.barceloneta, -90, -80),
-  vela: arrival(P.hotelW, 40, -260)
+  ajuntament: arrival(P.ajuntament, 0, 150),
+  micalet: arrival(P.micalet, -60, 90),
+  serrans: arrival(P.serrans, 40, 110),
+  quart: arrival(P.quart, -60, 60),
+  mercat: arrival(P.mercatCentral, -40, 90),
+  nord: arrival(P.estacioNord, 60, 40),
+  russafa: arrival(P.mercatRussafa, -48, 20),
+  cac: arrival(P.hemisferic, -180, -60),
+  mestalla: arrival(P.mestalla, -120, 0),
+  malvarrosa: arrival(P.malvarrosa, -200, 0),
+  veles: arrival(P.velesVents, -60, -180)
 };
-// Where every travel mode starts on a first visit: Passeig de Gràcia's southbound roadway by Casa Batlló, facing down
-// toward Plaça de Catalunya
+// Where every travel mode starts on a first visit: on the Avinguda del Marqués de Sotelo, the boulevard from the
+// Estació del Nord, facing up into the Plaça de l'Ajuntament
 const SPAWN = (() => {
-  const pg = ROADS.filter((r) => r.name === 'Passeig de Gràcia').flatMap((r) => r.pts);
-  const target = { x: P.casaBatllo.x, z: P.casaBatllo.z + 90 };
-  const at = pg.reduce((a, p) => (Math.hypot(p.x - target.x, p.z - target.z) < Math.hypot(a.x - target.x, a.z - target.z) ? p : a), pg[0] || target);
-  return { x: at.x - 5, z: at.z, heading: 0 };
+  const pts = ROADS.filter((r) => r.name === 'Avinguda del Marqués de Sotelo').flatMap((r) => r.pts);
+  const want = { x: P.ajuntament.x - 120, z: P.ajuntament.z + 115 };
+  const at = pts.reduce((a, p) => (Math.hypot(p.x - want.x, p.z - want.z) < Math.hypot(a.x - want.x, a.z - want.z) ? p : a), pts[0] || snapToStreet(want.x, want.z, 9));
+  return { x: at.x, z: at.z, heading: heading(at, P.ajuntament) };
 })();
 const CITY_LANDMARKS = [
-  ['sagrada', 'Sagrada Família', 'Sagrada Família', P.sagradaFamilia, "L'Eixample"],
-  ['catalunya', 'Plaça de Catalunya', 'Pl. Catalunya', P.placaCatalunya, 'Centre'],
-  ['batllo', 'Casa Batlló', 'Casa Batlló', P.casaBatllo, 'Passeig de Gràcia'],
-  ['pedrera', 'La Pedrera (Casa Milà)', 'La Pedrera', P.pedrera, 'Passeig de Gràcia'],
-  ['arc', 'Arc de Triomf', 'Arc de Triomf', P.arcTriomf, 'Passeig de Lluís Companys'],
-  ['rambla', 'La Rambla & el Liceu', 'La Rambla', P.liceu, 'Ciutat Vella'],
-  ['catedral', 'Catedral de Barcelona', 'Catedral', P.catedral, 'Barri Gòtic'],
-  ['ciutadella', 'Parc de la Ciutadella', 'Ciutadella', P.ciutadella, 'Ciutat Vella'],
-  ['glories', 'Torre Glòries', 'Torre Glòries', P.torreGlories, 'Sant Martí'],
-  ['colom', 'Monument a Colom', 'Colom', P.colom, 'Port Vell'],
-  ['barceloneta', 'Platja de la Barceloneta', 'Barceloneta', P.barceloneta, 'La Barceloneta'],
-  ['vela', 'Hotel W (la Vela)', 'Hotel W', P.hotelW, 'Port'],
-  ['arts', 'Hotel Arts & Torre Mapfre', 'Hotel Arts', P.hotelArts, 'Vila Olímpica'],
-  ['espanya', "Plaça d'Espanya", 'Pl. Espanya', P.placaEspanya, 'Sants-Montjuïc']
+  ['ajuntament', "Plaça de l'Ajuntament", 'Pl. Ajuntament', P.ajuntament, 'Ciutat Vella'],
+  ['micalet', 'Catedral & el Micalet', 'Micalet', P.micalet, 'La Seu'],
+  ['virgen', 'Plaça de la Mare de Déu', 'Pl. Mare de Déu', P.placaVirgen, 'La Seu'],
+  ['serrans', 'Torres dels Serrans', 'Serrans', P.serrans, 'El Carme'],
+  ['quart', 'Torres de Quart', 'Quart', P.quart, 'El Carme'],
+  ['llotja', 'Llotja de la Seda', 'Llotja', P.llotja, 'El Mercat'],
+  ['mercat', 'Mercat Central', 'Mercat Central', P.mercatCentral, 'El Mercat'],
+  ['nord', 'Estació del Nord & Plaça de Bous', 'Estació del Nord', P.estacioNord, 'Russafa'],
+  ['colon', 'Mercat de Colón', 'Colón', P.mercatColon, 'Pla del Remei'],
+  ['russafa', 'Mercat de Russafa', 'Mercat de Russafa', P.mercatRussafa, 'Russafa'],
+  ['gulliver', 'Jardí del Túria · Gulliver', 'Gulliver', P.gulliver, 'Jardí del Túria'],
+  ['cac', 'Ciutat de les Arts i les Ciències', 'Arts i Ciències', P.hemisferic, 'Quatre Carreres'],
+  ['arts', 'Palau de les Arts', 'Palau de les Arts', P.palauArts, 'Quatre Carreres'],
+  ['oceanografic', 'Oceanogràfic', 'Oceanogràfic', P.oceanografic, 'Quatre Carreres'],
+  ['mestalla', 'Estadi de Mestalla', 'Mestalla', P.mestalla, 'El Pla del Real'],
+  ['malvarrosa', 'Platja de la Malva-rosa', 'Malva-rosa', P.malvarrosa, 'Poblats Marítims'],
+  ['veles', 'Veles e Vents & la Marina', 'Veles e Vents', P.velesVents, 'La Marina']
 ].map(([id, name, short, p, district]) => ({ id, name, short, x: p.x, z: p.z, district }));
 
 const ISLAND_BOUNDS = (() => {
@@ -360,14 +410,14 @@ function getLocationLabel(x, z) {
   }
   const b = blockAt(x, z);
   if (b && b.parkName && b.park > 0.6) return b.parkName;
-  if (!onLand(x, z)) return METRO_LAND.length && pointInPoly(METRO_LAND, x, z) ? 'Barcelona' : 'Mar Mediterrània';
+  if (!onLand(x, z)) return METRO_LAND.length && pointInPoly(METRO_LAND, x, z) ? 'València' : 'Mar Mediterrània';
   const near = nearestRoads(x, z, 160);
   // a corner: the two nearest streets crossing each other
   const a = near[0];
   const c = a && near.find((r) => r.horizontal !== a.horizontal && r.dist < a.dist + 25);
   if (a && c) return `${a.road.short} & ${c.road.short}`;
   if (a) return a.road.name;
-  return DISTRICT_NAMES[districtAt(x, z)] || 'Barcelona';
+  return barriAt(x, z).name;
 }
 
 // Keyboard shortcuts are ignored while typing into a form field (e.g. the map's street search box)
@@ -408,6 +458,7 @@ export {
   ROADS,
   CITY_LANDMARKS,
   LANDMARK_SITES,
+  LANDMARK_CIRCLES,
   TELEPORT_LOCATIONS,
   SPAWN,
   ISLAND_BOUNDS,
@@ -416,6 +467,7 @@ export {
   lonLatToWorld,
   onLand,
   districtAt,
+  barriAt,
   blockAt,
   nearestRoads,
   getLocationLabel,

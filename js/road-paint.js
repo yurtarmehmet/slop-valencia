@@ -1,205 +1,178 @@
 import * as THREE from 'three/webgpu';
-import { CROSSWALK } from './road-network.js';
-import { createRoadPaintMaterial } from './tsl-materials.js';
+import { createRoadPaintMaterial, createStoneLaneMaterial } from './tsl-materials.js';
+import { buildGroundDecals } from './vlc-ground-decals.js';
+import { REAL_MARKINGS } from './vlc-markings.js';
+import { STONE_LANES } from './vlc-stone-lanes.js';
 
-// Road markings generated from the drivable road network (js/road-network.js), so the paint matches where traffic
-// actually drives and stops: dashed lane lines, double yellow centre lines on two-way roads, stop bars at the stop
-// lines, continental crosswalks across every intersection approach and green bike lanes along wide one-way avenues.
+// València's road markings where the city painted them (js/vlc-markings.js: the Ajuntament's Senyalització
+// horitzontal, rebuilt as strokes & polygons by tools/build-markings.py): white lane lines, zebra crossings, stop bars,
+// bus & bike lane lines, parking bays (white, ORA blue / orange / green), yellow no-parking lines & bus-stop zigzags,
+// red bike-lane & raised-crossing paint, each in its real width and dash pattern (Norma 8.2-IC, as painted).
+// Vertex-coloured strips (a `paint` attribute with metres along the stroke, dash period & duty, and a `side` offset
+// the material widens to a pixel at distance), cut into 400 m cells, each dropped beyond ~650 m (a THREE.LOD).
 
-const WHITE = new THREE.Color(0xe6e2d6);
-const YELLOW = new THREE.Color(0xe8ad22);
-const GREEN = new THREE.Color(0x2a8a4e);
 const HEIGHT = 0.012; // above the asphalt
+const CELL = 400;
+const DRAW_DISTANCE = 650;
 
-function buildRoadPaint(scene, network) {
+// The old town's stone lanes & the streets paved in setts or slabs (js/vlc-stone-lanes.js, tools/build-kerbs.py): flat
+// strips between the facades (kerb-free shared lanes) or the kerbs, just over the asphalt and under the paint
+function buildStoneLanes(scene) {
   const position = [];
-  const side = [];
-  const paint = [];
-  const colors = [];
+  const paving = [];
   const index = [];
-  const lines = [];
-  const bends = new Map();
-
-  // Flat strip w wide from a to b, with a dash pattern (period, duty cycle) running along it
-  function strip(ax, az, bx, bz, w, col, period = 1, duty = 1, phase = 0, flow = 1) {
-    const len = Math.hypot(bx - ax, bz - az);
-    if (len < 0.05) return;
-    const sx = ((az - bz) / len) * w * 0.5;
-    const sz = ((bx - ax) / len) * w * 0.5;
-    const i = position.length / 3;
-    const end = phase + len * flow;
-    for (const [x, z, s, u] of [[ax, az, -1, phase], [ax, az, 1, phase], [bx, bz, 1, end], [bx, bz, -1, end]]) {
-      position.push(x + sx * s, HEIGHT, z + sz * s);
-      side.push(sx * s, sz * s);
-      paint.push(u, period, duty);
-      colors.push(col.r, col.g, col.b);
-    }
-    index.push(i, i + 1, i + 2, i, i + 2, i + 3);
-  }
-
-  // Edges run between stop lines; s is measured from the start one and o to the right of the centre line
-  const at = (e, s, o) => [e.sx + e.dx * s + e.rx * o, e.sz + e.dz * s + e.rz * o];
-  const along = (e, o, w, col, period = 1, duty = 1) => {
-    const start = (e.sx - e.x0) * e.dx + (e.sz - e.z0) * e.dz;
-    const ends = [at(e, e.from.shape ? -start : 0.9, o), at(e, e.to.shape ? e.span - start : e.len - 0.9, o)];
-    lines.push({ e, o, w, col, period, duty, ends, joins: [] });
-  };
-  const across = (e, s, o0, o1, w, col, period, duty) => strip(...at(e, s, o0), ...at(e, s, o1), w, col, period, duty);
-  const clearCentre = (e, o) => {
-    if (!network.isRoadClear) return false;
-    const steps = Math.max(1, Math.ceil((e.len - 1.8) / 2.5));
-    for (let i = 0; i <= steps; i++) {
-      const s = 0.9 + (e.len - 1.8) * i / steps;
-      for (const offset of [o - 0.12, o + 0.12]) if (!network.isRoadClear(...at(e, s, offset), 0.15)) return false;
-    }
-    return true;
-  };
-
-  // The one or two directed edges of each road between a pair of intersections
-  const roads = new Map();
-  for (const e of network.paintEdges || network.edges) {
-    const key = Math.min(e.from.id, e.to.id) * 65536 + Math.max(e.from.id, e.to.id);
-    if (roads.has(key)) roads.get(key).push(e);
-    else roads.set(key, [e]);
-  }
-
-  for (const [e, back] of roads.values()) {
-    const firstLine = lines.length;
-    // Lanes of both directions, measured to the right of e, left to right
-    const lanes = e.lanes.map((o) => ({ o, dir: 1 }));
-    if (back) for (const o of back.lanes) lanes.push({ o: -o, dir: -1 });
-    lanes.sort((p, q) => p.o - q.o);
-
-    // Dashed white between lanes going the same way, double yellow between opposing ones
-    // (nothing across a median or a lane closed off by an obstacle)
-    for (let k = 0; k + 1 < lanes.length; k++) {
-      const p = lanes[k];
-      const q = lanes[k + 1];
-      const mid = (p.o + q.o) / 2;
-      if (q.o - p.o > 4.5 && (p.dir === q.dir || !clearCentre(e, mid))) continue;
-      if (p.dir === q.dir) {
-        along(e, mid, 0.13, WHITE, 12, 0.25);
-      } else {
-        along(e, mid - 0.12, 0.11, YELLOW);
-        along(e, mid + 0.12, 0.11, YELLOW);
+  for (const lane of STONE_LANES) {
+    const p = lane.pts;
+    const n = p.length;
+    if (n < 2) continue;
+    const base = position.length / 3;
+    for (let i = 0; i < n; i++) {
+      // mitred normal (to the right of the lane's direction: x = -dz, z = dx), miters clamped to twice the width
+      let nx = 0, nz = 0, ax = 0, az = 0;
+      for (const [j, k] of [[i - 1, i], [i, i + 1]]) {
+        if (j < 0 || k >= n) continue;
+        const dx = p[k][0] - p[j][0], dz = p[k][1] - p[j][1];
+        const L = Math.hypot(dx, dz) || 1;
+        nx += -dz / L; nz += dx / L;
+        ax = -dz / L; az = dx / L;
+      }
+      const ml = Math.hypot(nx, nz) || 1;
+      nx /= ml; nz /= ml;
+      const m = 1 / Math.max(0.5, nx * ax + nz * az);
+      // a little past the kerbs & facades, which hide the edges
+      const l = (lane.l + 0.3) * m, r = (lane.r + 0.3) * m;
+      position.push(p[i][0] - nx * l, 0.006, p[i][1] - nz * l, p[i][0] + nx * r, 0.006, p[i][1] + nz * r);
+      paving.push(lane.p, lane.p);
+      if (i > 0) {
+        const a = base + (i - 1) * 2;
+        index.push(a, a + 1, a + 3, a, a + 3, a + 2);
       }
     }
-
-    // Wide one-way avenues: edge line, then a buffer and a green bike lane along the curb on the side left free
-    if (!back && e.axis === 'ave' && lanes.length >= 4) {
-      for (const [edge, sign] of [[lanes[lanes.length - 1].o + 1.8, 1], [lanes[0].o - 1.8, -1]]) {
-        const curb = sign * e.half;
-        if ((curb - edge) * sign < 3.5) continue;
-        along(e, edge + sign * 0.2, 0.13, WHITE);
-        along(e, curb - sign * 2.4, 0.13, WHITE);
-        along(e, curb - sign * 1.3, 2.0, GREEN);
-      }
-    }
-
-    // Stop bars across the lanes arriving at each stop line, from the centre line (or median) to the curb (none where a
-    // street merely bends: a shape node of the centreline streets)
-    for (const f of back ? [e, back] : [e]) {
-      if (f.to.shape) continue;
-      const left = back ? Math.max(0, f.lanes[0] - 1.8) : -f.half;
-      across(f, f.len - 0.35, left + 0.1, f.half - 0.1, 0.45, WHITE);
-    }
-
-    // Continental crosswalks curb to curb, between the stop lines and the intersections at both ends
-    if (!e.from.shape) across(e, -CROSSWALK / 2, -e.half, e.half, CROSSWALK - 0.3, WHITE, 1.2, 0.5);
-    if (!e.to.shape) across(e, e.len + CROSSWALK / 2, -e.half, e.half, CROSSWALK - 0.3, WHITE, 1.2, 0.5);
-
-    for (const [end, node] of [[0, e.from], [1, e.to]]) {
-      if (!node.shape) continue;
-      if (!bends.has(node.id)) bends.set(node.id, []);
-      bends.get(node.id).push({ e, end, lines: lines.slice(firstLine) });
-    }
   }
-
-  // At a simple bend, corresponding offset lines meet at a bounded miter, without an intersection-sized gap.
-  for (const roadsAtBend of bends.values()) {
-    if (roadsAtBend.length !== 2) continue;
-    const [a, b] = roadsAtBend;
-    const sign = a.end === b.end ? -1 : 1;
-    if ((a.e.dx * b.e.dx + a.e.dz * b.e.dz) * sign < 0.5) continue;
-    for (const p of a.lines) {
-      let q = null;
-      let distance = 0.5;
-      for (const line of b.lines) {
-        const d = Math.abs(p.o - line.o * sign);
-        if (!line.joins[b.end] && line.col === p.col && line.w === p.w && line.period === p.period &&
-          line.duty === p.duty && d < distance) {
-          q = line;
-          distance = d;
-        }
-      }
-      if (!q) continue;
-      const A = p.ends[a.end];
-      const B = q.ends[b.end];
-      const dx = B[0] - A[0];
-      const dz = B[1] - A[1];
-      const cross = a.e.dx * b.e.dz - a.e.dz * b.e.dx;
-      let join;
-      if (Math.abs(cross) < 0.001) {
-        if (Math.hypot(dx, dz) > 0.5) continue;
-        join = [(A[0] + B[0]) * 0.5, (A[1] + B[1]) * 0.5];
-      } else {
-        const t = (dx * b.e.dz - dz * b.e.dx) / cross;
-        const u = (dx * a.e.dz - dz * a.e.dx) / cross;
-        const limit = Math.min(6, a.e.span * 0.25, b.e.span * 0.25);
-        if (Math.abs(t) > limit || Math.abs(u) > limit) continue;
-        join = [A[0] + a.e.dx * t, A[1] + a.e.dz * t];
-      }
-      p.ends[a.end] = q.ends[b.end] = join;
-      p.joins[a.end] = [q, b.end];
-      q.joins[b.end] = [p, a.end];
-    }
-  }
-
-  // Continue the same dash phase around bends, even when adjacent road edges point in opposite directions.
-  for (const line of lines) {
-    // An unmatched marking keeps its original gap instead of extending towards a curb at a sharp bend.
-    for (const end of [0, 1]) {
-      if (!line.joins[end]) line.ends[end] = at(line.e, end ? line.e.len - 0.9 : 0.9, line.o);
-    }
-    line.len = Math.hypot(line.ends[1][0] - line.ends[0][0], line.ends[1][1] - line.ends[0][1]);
-  }
-  for (const root of lines) {
-    if (root.phase !== undefined) continue;
-    root.phase = 0;
-    root.flow = 1;
-    const stack = [root];
-    while (stack.length) {
-      const line = stack.pop();
-      for (let end = 0; end < 2; end++) {
-        if (!line.joins[end]) continue;
-        const [next, nextEnd] = line.joins[end];
-        if (next.phase !== undefined) continue;
-        next.flow = line.flow * (end === nextEnd ? -1 : 1);
-        next.phase = line.phase + end * line.len * line.flow - nextEnd * next.len * next.flow;
-        next.phase = ((next.phase % next.period) + next.period) % next.period;
-        stack.push(next);
-      }
-      strip(...line.ends[0], ...line.ends[1], line.w, line.col, line.period, line.duty, line.phase, line.flow);
-    }
-  }
-
+  if (!index.length) return null;
+  const geometry = new THREE.BufferGeometry();
   const normal = new Float32Array(position.length);
   for (let i = 1; i < normal.length; i += 3) normal[i] = 1;
-
-  const geometry = new THREE.BufferGeometry();
+  const uv = new Float32Array((position.length / 3) * 2);
   geometry.setAttribute('position', new THREE.Float32BufferAttribute(position, 3));
   geometry.setAttribute('normal', new THREE.BufferAttribute(normal, 3));
-  geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
-  geometry.setAttribute('side', new THREE.Float32BufferAttribute(side, 2));
-  geometry.setAttribute('paint', new THREE.Float32BufferAttribute(paint, 3));
+  geometry.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+  geometry.setAttribute('paving', new THREE.Float32BufferAttribute(paving, 1));
   geometry.setIndex(index);
-
-  const mesh = new THREE.Mesh(geometry, createRoadPaintMaterial());
-  mesh.name = 'RoadMarkings';
+  const material = createStoneLaneMaterial();
+  material.name = 'stonelane';
+  const mesh = new THREE.Mesh(geometry, material);
+  mesh.name = 'StoneLanes';
   mesh.receiveShadow = true;
-  mesh.renderOrder = -1; // under the other see-through ground effects (contact shadows, headlight beams)
-  scene.add(mesh);
+  // a few thousand triangles: one mesh under CityGrid
+  (scene.getObjectByName('CityGrid') || scene).add(mesh);
   return mesh;
+}
+
+function buildRoadPaint(scene, network) {
+  // Storm drains, manholes & utility lids, under CityGrid so the scene culling chunks them
+  buildGroundDecals(scene.getObjectByName('CityGrid') || scene, network);
+  buildStoneLanes(scene);
+
+  const { styles, strokes, polys } = REAL_MARKINGS;
+  const colours = styles.map((s) => new THREE.Color().setRGB(s.r / 255, s.g / 255, s.b / 255, THREE.SRGBColorSpace));
+  const cells = new Map();
+  const cellOf = (x, z) => {
+    const key = Math.floor(x / CELL) * 65536 + Math.floor(z / CELL);
+    let c = cells.get(key);
+    if (!c) cells.set(key, (c = { x: (Math.floor(x / CELL) + 0.5) * CELL, z: (Math.floor(z / CELL) + 0.5) * CELL, position: [], side: [], paint: [], color: [], index: [] }));
+    return c;
+  };
+
+  // A stroke: a strip along its centre polyline with mitred joints (miters clamped to twice the half width)
+  for (const s of strokes) {
+    const p = s.pts;
+    const n = p.length / 2;
+    if (n < 2) continue;
+    const c = cellOf(p[0], p[1]);
+    const col = colours[s.style];
+    const period = s.period > 0 ? s.period : 1;
+    const duty = s.period > 0 ? s.duty : 1;
+    const hw = s.width / 2;
+    const base = c.position.length / 3;
+    let u = 0;
+    for (let i = 0; i < n; i++) {
+      const x = p[i * 2], z = p[i * 2 + 1];
+      if (i > 0) u += Math.hypot(x - p[i * 2 - 2], z - p[i * 2 - 1]);
+      // unit normals of the segments before & after this point
+      let nx = 0, nz = 0, cnt = 0, ax = 0, az = 0;
+      for (const [j, k] of [[i - 1, i], [i, i + 1]]) {
+        if (j < 0 || k >= n) continue;
+        const dx = p[k * 2] - p[j * 2], dz = p[k * 2 + 1] - p[j * 2 + 1];
+        const L = Math.hypot(dx, dz) || 1;
+        nx += -dz / L; nz += dx / L; cnt++;
+        ax = -dz / L; az = dx / L;
+      }
+      const ml = Math.hypot(nx, nz) || 1;
+      nx /= ml; nz /= ml;
+      const cos = Math.max(0.5, nx * ax + nz * az);
+      const ox = nx * hw / cos, oz = nz * hw / cos;
+      for (const sgn of [-1, 1]) {
+        c.position.push(x + ox * sgn - c.x, HEIGHT, z + oz * sgn - c.z);
+        c.side.push(ox * sgn, oz * sgn);
+        c.paint.push(u, period, duty);
+        c.color.push(col.r, col.g, col.b);
+      }
+      if (i > 0) {
+        const a = base + (i - 1) * 2;
+        c.index.push(a, a + 1, a + 3, a, a + 3, a + 2);
+      }
+    }
+  }
+
+  // Filled shapes (arrows, triangles, hatched islands): earcut
+  for (const poly of polys) {
+    const p = poly.pts;
+    const n = p.length / 2;
+    if (n < 3) continue;
+    const c = cellOf(p[0], p[1]);
+    const col = colours[poly.style];
+    const contour = [];
+    for (let i = 0; i < n; i++) contour.push(new THREE.Vector2(p[i * 2], p[i * 2 + 1]));
+    const tris = THREE.ShapeUtils.triangulateShape(contour, []);
+    const base = c.position.length / 3;
+    for (let i = 0; i < n; i++) {
+      c.position.push(p[i * 2] - c.x, HEIGHT, p[i * 2 + 1] - c.z);
+      c.side.push(0, 0);
+      c.paint.push(0, 1, 1);
+      c.color.push(col.r, col.g, col.b);
+    }
+    for (const t of tris) c.index.push(base + t[0], base + t[1], base + t[2]);
+  }
+
+  const material = createRoadPaintMaterial();
+  material.name = 'roadpaint';
+  const group = new THREE.Group();
+  group.name = 'RoadMarkings';
+  for (const c of cells.values()) {
+    const geometry = new THREE.BufferGeometry();
+    const normal = new Float32Array(c.position.length);
+    for (let i = 1; i < normal.length; i += 3) normal[i] = 1;
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute(c.position, 3));
+    geometry.setAttribute('normal', new THREE.BufferAttribute(normal, 3));
+    geometry.setAttribute('color', new THREE.Float32BufferAttribute(c.color, 3));
+    geometry.setAttribute('side', new THREE.Float32BufferAttribute(c.side, 2));
+    geometry.setAttribute('paint', new THREE.Float32BufferAttribute(c.paint, 3));
+    geometry.setIndex(c.index);
+    geometry.computeBoundingSphere();
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.name = 'RoadMarkings';
+    mesh.receiveShadow = true;
+    mesh.renderOrder = -1; // under the other see-through ground effects (contact shadows, headlight beams)
+    const lod = new THREE.LOD();
+    lod.position.set(c.x, 0, c.z);
+    lod.addLevel(mesh, 0);
+    lod.addLevel(new THREE.Object3D(), DRAW_DISTANCE);
+    group.add(lod);
+  }
+  scene.add(group);
+  console.info(`[markings] ${strokes.length} strokes, ${polys.length} shapes in ${cells.size} cells`);
+  return group;
 }
 
 export { buildRoadPaint };

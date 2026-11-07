@@ -1,33 +1,15 @@
 import * as THREE from 'three/webgpu';
 import { Fn, float, color, positionWorld, uniform, mod, fract, step, smoothstep, mix } from 'three/tsl';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { SIGNAL_TIMING, blockAt, BLOCKS } from './city-config.js';
+import { SIGNAL_TIMING, blockAt, BLOCKS, onLand } from './city-config.js';
+import { REAL_TREES } from './vlc-trees.js';
 import { GEO } from './bcn-geodata.js';
 import { cityUniforms, createTreeGrateMaterial, createGodRayMaterial } from './tsl-materials.js';
 import { createTreeField } from './trees.js';
 import { pavedPlazaRects, parkTreeSites, sidewalkBlocks, parkLampSites } from './city-grid.js';
+import { buildStreetLamps } from './street-lamps.js';
 
 // Instanced street furniture, traffic signals, trees and nearby light pools.
-
-function createStreetSignBladeTexture(label) {
-  const c = document.createElement('canvas');
-  c.width = 256;
-  c.height = 64;
-  const ctx = c.getContext('2d');
-  ctx.fillStyle = '#0d6b3f';
-  ctx.fillRect(0, 0, 256, 64);
-  ctx.strokeStyle = '#ffffff';
-  ctx.lineWidth = 5;
-  ctx.strokeRect(4, 4, 248, 56);
-  ctx.fillStyle = '#ffffff';
-  ctx.font = '800 30px Inter, Arial, sans-serif';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText(label, 128, 34);
-  const tex = new THREE.CanvasTexture(c);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  return tex;
-}
 
 /**
  * TSL 3-Aspect Traffic Signal Lens Material (Red y=5.78, Amber y=5.42, Green y=5.06)
@@ -107,7 +89,7 @@ function buildStreetDetails(scene) {
     metalness: 0.78
   });
   const signalHousingMat = new THREE.MeshStandardNodeMaterial({
-    color: 0x2b2d2f, // Barcelona's dark grey signal housings
+    color: 0x2b2d2f, // dark grey signal housings
     roughness: 0.38,
     metalness: 0.35,
     side: THREE.DoubleSide // the tunnel visors are open half-tubes
@@ -115,15 +97,6 @@ function buildStreetDetails(scene) {
   const aveSignalLensMat = createTrafficSignalLensMaterial(true, signalClock);
   const streetSignalLensMat = createTrafficSignalLensMaterial(false, signalClock);
   const walkSignalGlow = createWalkSignalMaterial(signalClock);
-  // Cobra-head LED streetlight lens & pedestrian post-top globe: pale diffuser by day, warm white after dusk
-  const lampBulbGlow = new THREE.MeshBasicNodeMaterial();
-  lampBulbGlow.colorNode = mix(color(0x8f918c), color(0xfff1d6).mul(2.1), smoothstep(0.4, 1.1, cityUniforms.uInteriorGlow));
-  const pedGlobeGlow = new THREE.MeshBasicNodeMaterial();
-  pedGlobeGlow.colorNode = mix(color(0xd4d2c8), color(0xffe4b0).mul(1.95), smoothstep(0.4, 1.1, cityUniforms.uInteriorGlow));
-  const streetBladeMat = new THREE.MeshStandardNodeMaterial({
-    map: createStreetSignBladeTexture('5TH AVE · 42 ST'),
-    roughness: 0.32
-  });
 
   // 12-inch three-section signal head (origin at its centre, y = 5.42): yellow housing, a tunnel visor over each lens
   // and a hanger to the mast arm, lenses on both faces (+-z) so it reads from both approaches; the lens material
@@ -146,16 +119,6 @@ function buildStreetDetails(scene) {
   // Pedestrian signal: housing with the WALK / hand face lit on both sides (+-z, toward the crosswalk's far end)
   const walkHousingGeo = new THREE.BoxGeometry(0.34, 0.4, 0.24);
   const walkPanelGeo = mergeGeometries(bothFaces(new THREE.PlaneGeometry(0.27, 0.31).translate(0, 0, 0.125)));
-  // Cobra-head luminaire on the end of the arm: flattened grey housing, flat lens underneath
-  const lampHousingGeo = new THREE.SphereGeometry(1, 14, 8, 0, Math.PI * 2, 0, Math.PI / 2).scale(0.7, 0.2, 0.3);
-  const lampLensGeo = new THREE.CircleGeometry(1, 16).rotateX(Math.PI / 2).scale(0.6, 1, 0.24).translate(0, -0.005, 0);
-  // Classic cast-iron pedestrian post-top globe lightpole (fluted base + shaft + decorative capital + opal globe)
-  const pedLampPostGeo = mergeGeometries([
-    new THREE.CylinderGeometry(0.11, 0.16, 0.85, 10).translate(0, 0.425, 0),
-    new THREE.CylinderGeometry(0.065, 0.085, 2.75, 10).translate(0, 2.22, 0),
-    new THREE.CylinderGeometry(0.14, 0.07, 0.16, 10).translate(0, 3.62, 0)
-  ].map((g) => g.toNonIndexed()));
-  const pedGlobeGeo = new THREE.SphereGeometry(0.23, 8, 6).translate(0, 3.84, 0);
 
   // =========================================================================
   // 1. TRAFFIC SIGNALS & PEDESTRIAN SIGNALS
@@ -165,13 +128,9 @@ function buildStreetDetails(scene) {
   const yellowBoxMatrices = [];
   const aveLensMatrices = [];
   const streetLensMatrices = [];
-  const streetBladeMatrices = [];
   const walkBoxMatrices = [];
   const audioSignals = [];
   const signalIntersections = [];
-  const lampHeadMatrices = [];
-  const pedPostMatrices = [];
-  const cobraLampSites = [];
   const streetPointSites = [];
   // Only nearby poles can conflict, even with street furniture across the whole island.
   const POLE_CELL = 8;
@@ -288,158 +247,13 @@ function buildStreetDetails(scene) {
   }
 
   // =========================================================================
-  // 2. MID-BLOCK AVENUE & STREET ORNAMENTAL ACORN & COBRA STREETLIGHTS
-  //    Placed directly along the true curb edges of every city block (BLOCKS)
-  //    and verified with blockAt(x, z) so no pole ever stands in any roadway.
+  // 2. STREET LAMPS (street-lamps.js): València's own lanterns, columns & poles at the mapped lamps (OpenStreetMap &
+  //    the Ajuntament's Mobiliari urbà), then by area & street width along every street the data leaves dark
   // =========================================================================
-  const allBlocks = BLOCKS || [];
-
-  for (const b of allBlocks) {
-    if (!b || !b.poly || b.poly.length < 3 || b.median || b.park > 0.6) continue;
-
-    const poly = b.poly;
-    for (let i = 0; i < poly.length; i++) {
-      const p0 = poly[i];
-      const p1 = poly[(i + 1) % poly.length];
-      const dx = p1.x - p0.x;
-      const dz = p1.z - p0.z;
-      const len = Math.hypot(dx, dz);
-      if (len < 24) continue;
-
-      const ux = dx / len;
-      const uz = dz / len;
-      const mx = (p0.x + p1.x) * 0.5;
-      const mz = (p0.z + p1.z) * 0.5;
-
-      // Determine inward normal (into the sidewalk block) and outward normal (into the street roadway)
-      let inx = -uz;
-      let inz = ux;
-      if (blockAt(mx + inx * 1.6, mz + inz * 1.6) !== b) {
-        inx = uz;
-        inz = -ux;
-      }
-      if (blockAt(mx + inx * 1.6, mz + inz * 1.6) !== b) continue;
-      const outX = -inx;
-      const outZ = -inz;
-      // Confirm this curb edge fronts an open roadway
-      if (blockAt(mx + outX * 2.5, mz + outZ * 2.5)) continue;
-
-      const isAvenueEdge = Math.abs(uz) > 0.65;
-      if (isAvenueEdge) {
-        const armYaw = Math.atan2(-outZ, outX);
-        const cobraFracs = inx > 0 ? [0.26, 0.72] : [0.32, 0.78];
-        for (const f of cobraFracs) {
-          const cx = p0.x + dx * f;
-          const cz = p0.z + dz * f;
-          const lx = cx + inx * 1.08;
-          const lz = cz + inz * 1.08;
-          const headX = lx + outX * 2.6;
-          const headZ = lz + outZ * 2.6;
-          if (
-            !isOnSidewalk(lx, lz, 0.55) ||
-            blockAt(cx + outX * 2.5, cz + outZ * 2.5) ||
-            blockAt(headX, headZ) ||
-            !isClearOfPoles(lx, lz, 6.5)
-          ) {
-            continue;
-          }
-          addPole(lx, lz, 0.45);
-
-          // Tall ornamental streetlight pole
-          dummy.position.set(lx, 4.3, lz);
-          dummy.rotation.set(0, 0, 0);
-          dummy.scale.set(0.12, 8.4, 0.12);
-          dummy.updateMatrix();
-          poleMatrices.push(dummy.matrix.clone());
-
-          // Upper luminaire bracket arm overhanging the street
-          dummy.position.set(lx + outX * 1.15, 8.2, lz + outZ * 1.15);
-          dummy.rotation.set(0, armYaw, 0);
-          dummy.scale.set(2.3, 0.09, 0.09);
-          dummy.updateMatrix();
-          armMatrices.push(dummy.matrix.clone());
-
-          // Cobra-head LED luminaire on the end of the arm, lens facing the street
-          dummy.position.set(headX, 8.08, headZ);
-          dummy.rotation.set(0, armYaw, 0);
-          dummy.scale.set(1, 1, 1);
-          dummy.updateMatrix();
-          lampHeadMatrices.push(dummy.matrix.clone());
-          dummy.rotation.set(0, 0, 0);
-
-          cobraLampSites.push({
-            x: headX,
-            y: 8.02,
-            z: headZ,
-            tx: lx + outX * 3.4,
-            tz: lz + outZ * 3.4
-          });
-        }
-
-        // Cast-iron pedestrian post-top globe lightpoles along the sidewalks (with PointLights)
-        const pedFracs = len >= 48 ? [0.16, 0.50, 0.84] : [0.24, 0.76];
-        for (const f of pedFracs) {
-          const cx = p0.x + dx * f;
-          const cz = p0.z + dz * f;
-          const px = cx + inx * 1.42;
-          const pz = cz + inz * 1.42;
-          if (
-            !isOnSidewalk(px, pz, 0.55) ||
-            blockAt(cx + outX * 2.2, cz + outZ * 2.2) ||
-            !isClearOfPoles(px, pz, 5.2)
-          ) {
-            continue;
-          }
-          addPole(px, pz, 0.4);
-
-          dummy.position.set(px, 0.18, pz);
-          dummy.rotation.set(0, 0, 0);
-          dummy.scale.set(1, 1, 1);
-          dummy.updateMatrix();
-          pedPostMatrices.push(dummy.matrix.clone());
-          streetPointSites.push({
-            x: px,
-            y: 4.02,
-            z: pz,
-            color: 0xffe0aa,
-            intensity: 30,
-            dist: 14.5
-          });
-        }
-      } else if (len >= 36) {
-        // Cross-street cast-iron pedestrian post-top globe lightpoles along north and south block curbs
-        const crossFracs = len >= 115 ? [0.20, 0.40, 0.60, 0.80] : [0.24, 0.50, 0.76];
-        for (const f of crossFracs) {
-          const cx = p0.x + dx * f;
-          const cz = p0.z + dz * f;
-          const px = cx + inx * 1.22;
-          const pz = cz + inz * 1.22;
-          if (
-            !isOnSidewalk(px, pz, 0.55) ||
-            blockAt(cx + outX * 2.2, cz + outZ * 2.2) ||
-            !isClearOfPoles(px, pz, 5.5)
-          ) {
-            continue;
-          }
-          addPole(px, pz, 0.4);
-
-          dummy.position.set(px, 0.18, pz);
-          dummy.rotation.set(0, 0, 0);
-          dummy.scale.set(1, 1, 1);
-          dummy.updateMatrix();
-          pedPostMatrices.push(dummy.matrix.clone());
-          streetPointSites.push({
-            x: px,
-            y: 4.02,
-            z: pz,
-            color: 0xffe0aa,
-            intensity: 28,
-            dist: 14.0
-          });
-        }
-      }
-    }
-  }
+  const streetLamps = buildStreetLamps({ isClearOfPoles, addPole });
+  for (const mesh of streetLamps.meshes) group.add(mesh);
+  const lampSpotSites = streetLamps.spotSites;
+  for (const p of streetLamps.pointSites) streetPointSites.push(p);
 
   function addMatrixArrayInstanced(geo, mat, matrices, castShadow = true) {
     if (matrices.length === 0) return;
@@ -460,26 +274,21 @@ function buildStreetDetails(scene) {
   addMatrixArrayInstanced(signalHousingGeo, signalHousingMat, yellowBoxMatrices);
   addMatrixArrayInstanced(signalLensGeo, aveSignalLensMat, aveLensMatrices, false);
   addMatrixArrayInstanced(signalLensGeo, streetSignalLensMat, streetLensMatrices, false);
-  addMatrixArrayInstanced(unitBox, streetBladeMat, streetBladeMatrices);
   addMatrixArrayInstanced(walkHousingGeo, signalHousingMat, walkBoxMatrices);
   addMatrixArrayInstanced(walkPanelGeo, walkSignalGlow, walkBoxMatrices, false);
-  addMatrixArrayInstanced(lampHousingGeo, poleMetalMat, lampHeadMatrices);
-  addMatrixArrayInstanced(lampLensGeo, lampBulbGlow, lampHeadMatrices, false);
-  addMatrixArrayInstanced(pedLampPostGeo, poleMetalMat, pedPostMatrices);
-  addMatrixArrayInstanced(pedGlobeGeo, pedGlobeGlow, pedPostMatrices, false);
 
   // =========================================================================
   // 2B. VOLUMETRIC GOLDEN-HOUR CANYON SUN SHAFTS (GOD RAYS)
   // =========================================================================
   const godRayMat = createGodRayMaterial();
   const godRayGeo = new THREE.PlaneGeometry(54, 92);
-  // Down the Eixample's long straight streets & Passeig de Gràcia (the Cerdà grid's axes run ~45° to the sun's path)
+  // Down the Ensanche's long straight streets (Colón, Xàtiva & the Gran Vies)
   const P = GEO.points;
   const canyonShafts = [
-    { x: P.casaBatllo[0] - 30, y: 40, z: P.casaBatllo[1] + 40, rotY: 0.32, rotZ: -0.46 },
-    { x: P.pedrera[0] - 30, y: 42, z: P.pedrera[1] + 60, rotY: 0.28, rotZ: -0.44 },
-    { x: P.universitat[0] + 60, y: 38, z: P.universitat[1] - 70, rotY: 0.25, rotZ: -0.45 },
-    { x: P.sagradaFamilia[0] - 200, y: 40, z: P.sagradaFamilia[1] + 70, rotY: 0.3, rotZ: -0.44 }
+    { x: P.mercatColon[0] - 30, y: 40, z: P.mercatColon[1] + 40, rotY: 0.32, rotZ: -0.46 },
+    { x: P.russafa[0] - 30, y: 42, z: P.russafa[1] - 60, rotY: 0.28, rotZ: -0.44 },
+    { x: P.ajuntament[0] + 60, y: 38, z: P.ajuntament[1] + 70, rotY: 0.25, rotZ: -0.45 },
+    { x: P.estacioNord[0] + 120, y: 40, z: P.estacioNord[1] + 70, rotY: 0.3, rotZ: -0.44 }
   ];
   for (const cs of canyonShafts) {
     const shaft = new THREE.Mesh(godRayGeo, godRayMat);
@@ -612,8 +421,24 @@ function buildStreetDetails(scene) {
   const mixSpecies = (r, plane, locust) => (r < plane ? 0 : (r < plane + locust ? 1 : 2));
 
 
+  // València's own trees (vlc-trees.js): every tree of the municipal inventory at its surveyed place, species & height
+  //   class, in its sidewalk pit where it has one; they stand in for the generated street & park trees below (and
+  //   leave the pools & fountains bare). Trees out on the roadway in the engine's street layout are dropped.
+  const realTrees = REAL_TREES && REAL_TREES.length ? REAL_TREES : null;
+  if (realTrees) {
+    let dropped = 0;
+    for (const t of realTrees) {
+      const b = blockAt(t.x, t.z);
+      if (!b || !onLand(t.x, t.z)) { dropped++; continue; }
+      const park = b.park > 0.6;
+      const tree = { x: t.x, y: park ? 0.26 : 0.22, z: t.z, scale: t.scale, species: t.species, yaw: t.yaw, tier: park ? 0 : 1 };
+      treePositions.push(tree);
+    }
+    console.info(`[streetDetails] ${treePositions.length} trees from the municipal inventory (${dropped} off the engine's blocks dropped)`);
+  }
+
   // A. The squares, the parks & the plazas (sites laid out by city-grid.js)
-  for (const s of parkTreeSites || []) treePositions.push(s);
+  if (!realTrees) for (const s of parkTreeSites || []) treePositions.push(s);
 
   // C & D. Street trees on the raised sidewalks of every real block (city-config.js BLOCKS via the slabs city-grid.js
   //        laid): along every curb — plane trees mostly, nettle trees on the narrow streets, with random missing trees
@@ -641,7 +466,7 @@ function buildStreetDetails(scene) {
   const COMMERCIAL = new Set(['glories', 'vila_olimpica']);
   const AVE_SP = 10;
   const CROSS_SP = 10;
-  for (const s of swBlocks) {
+  for (const s of realTrees ? [] : swBlocks) {
     const b = s.block;
     if (!b || b.median || b.park > 0.6) continue;
     const res = RESIDENTIAL.has(b.district);
@@ -752,7 +577,7 @@ function buildStreetDetails(scene) {
 
   const streetlightSpotPool = [];
   for (let i = 0; i < STREETLIGHT_SPOT_POOL; i++) {
-    // Cobra-head LED luminaire: wide downward spread (0.96 rad half-angle) illuminating both road and sidewalk
+    // Modern LED disc & wall-arm heads: wide downward spread (0.96 rad half-angle) over road and sidewalk
     const spot = new THREE.SpotLight(0xffe8c2, 0, 25, 0.96, 0.82, 1.25);
     spot.position.set(0, -1000, 0);
     spot.target.position.set(0, -1001, 0);
@@ -780,7 +605,7 @@ function buildStreetDetails(scene) {
     }
     return cells;
   }
-  const cobraCells = indexLights(cobraLampSites);
+  const spotCells = indexLights(lampSpotSites);
   const pointCells = indexLights(streetPointSites);
 
   function nearbyLights(cells, camera, range, active) {
@@ -806,7 +631,7 @@ function buildStreetDetails(scene) {
     return count;
   }
 
-  const activeCobras = [];
+  const activeSpots = [];
   const activePoints = [];
 
   function smoothFade(d, start, end) {
@@ -831,15 +656,15 @@ function buildStreetDetails(scene) {
       return;
     }
 
-    const cobraCount = nearbyLights(cobraCells, camera, STREETLIGHT_DIST, activeCobras);
+    const spotCount = nearbyLights(spotCells, camera, STREETLIGHT_DIST, activeSpots);
 
-    const cobraCutoff = cobraCount > STREETLIGHT_SPOT_POOL
-      ? Math.min(STREETLIGHT_DIST, activeCobras[STREETLIGHT_SPOT_POOL]._effDist)
+    const spotCutoff = spotCount > STREETLIGHT_SPOT_POOL
+      ? Math.min(STREETLIGHT_DIST, activeSpots[STREETLIGHT_SPOT_POOL]._effDist)
       : STREETLIGHT_DIST;
-    const spotUsed = Math.min(cobraCount, STREETLIGHT_SPOT_POOL);
+    const spotUsed = Math.min(spotCount, STREETLIGHT_SPOT_POOL);
     for (let i = 0; i < spotUsed; i++) {
-      const s = activeCobras[i];
-      const fade = smoothFade(s._effDist, cobraCutoff * 0.62, cobraCutoff);
+      const s = activeSpots[i];
+      const fade = smoothFade(s._effDist, spotCutoff * 0.62, spotCutoff);
       const spot = streetlightSpotPool[i];
       spot.position.set(s.x, s.y, s.z);
       spot.target.position.set(s.tx, 0.0, s.tz);

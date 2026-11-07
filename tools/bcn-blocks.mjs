@@ -1,10 +1,10 @@
-// Barcelona's blocks ("curb islands") from the OpenStreetMap street centrelines: every at-grade roadway is stamped at
+// València's blocks ("curb islands") from the OpenStreetMap street centrelines: every at-grade roadway is stamped at
 // its curb-to-curb width over the land (minus a waterfront strip), Cerdà's chamfered corners (xamfrans) are cut at
 // the Eixample's grid crossings, and what's left is labelled. Each block: curb outline polygon, the lot rects inside its
 // building line (in the grid frame, or in frontage frames turned to the streets it fronts), park / beach / square
 // shares and the heights OpenStreetMap gives its buildings.
 import { geo, toWorld, Raster, rdpRing, ringArea, bbox, load, log } from './bcn-base.mjs';
-import { ways, chamfers } from './bcn-ways.mjs';
+import { ways, chamfers, XAFLA } from './bcn-ways.mjs';
 
 export const STRIP = 14; // waterfront strip kept clear of blocks (promenade, moll edge), metres in from the shore
 const RES = 1;
@@ -71,7 +71,10 @@ for (const w of ways) {
   for (let i = 1; i < w.pts.length; i++) {
     const [ax, az] = w.pts[i - 1];
     const [bx, bz] = w.pts[i];
-    stampCapsule(ax, az, bx, bz, w.r, D);
+    // the roadway between its measured kerbs: the capsule shifted off the centreline by w.off (to the right)
+    const L = Math.hypot(bx - ax, bz - az) || 1;
+    const ox = (-(bz - az) / L) * (w.off || 0), oz = ((bx - ax) / L) * (w.off || 0);
+    stampCapsule(ax + ox, az + oz, bx + ox, bz + oz, w.r, D);
     stampCapsule(ax, az, bx, bz, w.r + w.sidewalk, build);
   }
 }
@@ -331,7 +334,7 @@ function blockFrames(c, poly) {
 // A curb island with four 45° chamfer faces (the xamfrans) and four sides along the grid is one of Cerdà's illes:
 // [x0, x1, z0, z1, c], its building line's square (the buildable cells' bounds) and the chamfer's legs on it. The
 // buildings.js illa layout rings it with apartment houses round a courtyard, a house facing each chamfer.
-const XAMFRA = 14.1;
+const XAMFRA = XAFLA;
 function illaOf(c) {
   // the island's building line: a square-ish area along the grid whose four corners are cut (a cell just inside each
   // corner of its bounds is off it) while its sides run straight up to the cuts
@@ -480,6 +483,6 @@ for (const c of comps) {
   });
 }
 log(`${blocks.length} blocks (${blocks.filter((b) => b.rect).length} rectangular, ${blocks.filter((b) => !b.rects.length).length} without lots); ${small} specks dropped`);
-log(`${blocks.filter((b) => b.illa).length} Eixample illes, ${blocks.filter((b) => b.frames).length} irregular blocks with frontage frames; ${blocks.filter((b) => b.park > 0.6).length} parks, ${blocks.filter((b) => b.beach > 0.6).length} beaches, ${blocks.filter((b) => b.square > 0.6).length} squares`);
+log(`${blocks.filter((b) => b.illa).length} Ensanche illes, ${blocks.filter((b) => b.frames).length} irregular blocks with frontage frames; ${blocks.filter((b) => b.park > 0.6).length} parks, ${blocks.filter((b) => b.beach > 0.6).length} beaches, ${blocks.filter((b) => b.square > 0.6).length} squares`);
 
 export { blocks, ways, chamfers, R as blockRaster, lab as blockLabels, build as buildRaster };

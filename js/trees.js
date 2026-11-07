@@ -413,6 +413,26 @@ const SPECIES = [
     twigs: { n: 3, t: [0.3, 1.0], angle: [0.5, 0.95], len: [1.3, 0.85], up: 0, out: 0, droop: 0.16, jitter: 0.12, segs: 2 },
     cards: { perTwig: 2, scale: [0.85, 1.1], droop: 0.4 },
     tints: [0x44622a, 0x53702e, 0x3a5724]
+  },
+  { // 3: Palm (Washingtonia, Phoenix, the city's 22,000 palms): a tall bare trunk, a crown of long fronds arching out
+    //    & drooping at the top, their leaflets the feathery cards
+    name: 'palm', tile: 1,
+    trunk: { r: 0.3, top: 10.2, lean: 0.035, segs: 8 },
+    limbs: { n: 14, y: [9.9, 10.2], tilt: [1.3, 0.62], len: [3.4, 2.8], r: 0.16, up: 0, out: 0, droop: 0.24, jitter: 0.2, segs: 5 },
+    branches: { n: 4, t: [0.25, 1.0], angle: [0.55, 0.75], len: [0.32, 0.22], up: 0, out: 0, droop: 0.12, jitter: 0.1, segs: 2 },
+    twigs: { n: 2, t: [0.4, 1.0], angle: [0.5, 0.8], len: [0.7, 0.5], up: 0, out: 0, droop: 0.12, jitter: 0.1, segs: 2 },
+    cards: { perTwig: 2, scale: [0.8, 1.0], droop: 0.5 },
+    tints: [0x4e6b2e, 0x5c7a34, 0x45602a]
+  },
+  { // 4: Bitter orange (Citrus aurantium, the city's most planted street tree): a short trunk under a dense, rounded,
+    //    dark glossy crown
+    name: 'orange', tile: 0,
+    trunk: { r: 0.12, top: 1.5, lean: 0.04, segs: 5 },
+    limbs: { n: 6, y: [1.1, 1.5], tilt: [0.95, 0.55], len: [1.7, 1.35], r: 0.6, up: 0.1, out: 0, droop: 0, jitter: 0.15, segs: 4 },
+    branches: { n: 4, t: [0.3, 1.0], angle: [0.6, 1.0], len: [0.62, 0.45], up: 0.05, out: 0.02, droop: 0, jitter: 0.12, segs: 3 },
+    twigs: { n: 3, t: [0.3, 1.0], angle: [0.6, 1.0], len: [0.55, 0.38], up: 0.02, out: 0, droop: 0.02, jitter: 0.12, segs: 2 },
+    cards: { perTwig: 3, scale: [0.55, 0.72], droop: 0.04 },
+    tints: [0x2f4f22, 0x37592a, 0x2a4520]
   }
 ];
 

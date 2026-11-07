@@ -1,0 +1,99 @@
+{
+ "contenidors-residus-solids-contenidores-residuos-solidos": {
+  "raw": 23057,
+  "detail": 14720,
+  "excluded": 2015,
+  "exclusion": "tipo 'PC PaP' collected by hand or in bags (tipo_carga Manual, Recogida manual, Bolseo, empty)"
+ },
+ "contenidors-vidre-contenedores-vidrio": {
+  "raw": 3034,
+  "detail": 1879,
+  "excluded": 0
+ },
+ "papereres-papeleras": {
+  "raw": 16585,
+  "detail": 10024,
+  "excluded": 0,
+  "onSignPoles": 1873
+ },
+ "bancs-en-via-publica-bancos-en-via-publica": {
+  "raw": 5958,
+  "detail": 3557,
+  "excluded": 0
+ },
+ "aparcaments-bicicletes-aparcamientos-bicicletas": {
+  "raw": 4355,
+  "detail": 3075,
+  "excluded": 0
+ },
+ "emt": {
+  "raw": 1155,
+  "detail": 650,
+  "excluded": 0,
+  "exclusion": "suprimida",
+  "shelters": 467
+ },
+ "fonts-daigua-publica-fuentes-de-agua-publica": {
+  "raw": 832,
+  "detail": 346,
+  "excluded": 0
+ },
+ "quiosc-once-quiosco-once": {
+  "raw": 158,
+  "detail": 115,
+  "excluded": 0
+ },
+ "quioscs-premsa-quioscos-prensa": {
+  "raw": 76,
+  "detail": 68,
+  "excluded": 0
+ },
+ "quioscs-flors-quioscos-flores": {
+  "raw": 15,
+  "detail": 15,
+  "excluded": 0
+ },
+ "pilons-extraibles-bolardos-extraibles": {
+  "raw": 182,
+  "detail": 122,
+  "excluded": 0
+ },
+ "signs": {
+  "total": 20905,
+  "byRule": {
+   "R1": 10936,
+   "R2": 4299,
+   "R3": 93,
+   "R4": 4232,
+   "R6": 1345
+  },
+  "byType": {
+   "R-1": 41,
+   "R-2": 52,
+   "R-101": 5832,
+   "R-308": 5328,
+   "S-13": 4548,
+   "S-11": 5104
+  }
+ },
+ "baked": {
+  "0": 12705,
+  "1": 1879,
+  "2": 10024,
+  "3": 3557,
+  "4": 3075,
+  "5": 650,
+  "6": 346,
+  "7": 198,
+  "8": 122,
+  "9": 20905
+ },
+ "signTypes": [
+  "R-1",
+  "R-2",
+  "R-101",
+  "R-308",
+  "S-13",
+  "S-11"
+ ]
+}

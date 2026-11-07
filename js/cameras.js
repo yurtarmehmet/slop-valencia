@@ -7,13 +7,13 @@ const CAMERA_PRESETS = [
   { id: 'chase',       name: 'Persecución',                   category: 'follow', fov: 56 },
   { id: 'action',      name: 'Contrapicado',                  category: 'follow', fov: 60 },
   { id: 'pov',         name: 'Primera persona / cabina',      category: 'follow', fov: 68 },
-  { id: 'sagrada',     name: 'Sagrada Família',               category: 'scenic', fov: 50 },
-  { id: 'gracia',      name: 'Passeig de Gràcia',             category: 'scenic', fov: 48 },
-  { id: 'rambla',      name: 'La Rambla',                     category: 'scenic', fov: 56 },
-  { id: 'catalunya',   name: 'Plaça de Catalunya',            category: 'scenic', fov: 52 },
-  { id: 'glories',     name: 'Torre Glòries & Diagonal',      category: 'scenic', fov: 50 },
-  { id: 'port',        name: 'Port Vell & Colom',             category: 'scenic', fov: 50 },
-  { id: 'beach',       name: 'Platja de la Barceloneta',      category: 'scenic', fov: 46 },
+  { id: 'micalet',     name: 'Catedral & el Micalet',         category: 'scenic', fov: 50 },
+  { id: 'ajuntament',  name: "Plaça de l'Ajuntament",         category: 'scenic', fov: 52 },
+  { id: 'serrans',     name: 'Torres dels Serrans',           category: 'scenic', fov: 50 },
+  { id: 'turia',       name: 'Jardí del Túria',               category: 'scenic', fov: 56 },
+  { id: 'cac',         name: 'Ciutat de les Arts i les Ciències', category: 'scenic', fov: 50 },
+  { id: 'port',        name: 'La Marina & Veles e Vents',     category: 'scenic', fov: 50 },
+  { id: 'beach',       name: 'Platja de la Malva-rosa',       category: 'scenic', fov: 46 },
   { id: 'drone',       name: 'Dron automático',               category: 'scenic', fov: 50 }
 ];
 // Where each scenic camera looks from: the landmarks' real places (city-config.js CITY_LANDMARKS)
@@ -117,7 +117,8 @@ class CameraSystem {
   }
 
   setCameraPreset(presetId, snapImmediately = false) {
-    const preset = CAMERA_PRESETS.find((p) => p.id === presetId);
+    // ('fixed' is the ?debug still camera: not in the cycle or the menus)
+    const preset = presetId === 'fixed' ? { id: 'fixed', fov: 50 } : CAMERA_PRESETS.find((p) => p.id === presetId);
     if (!preset) return;
     this.activePresetId = preset.id;
     this.camera.fov = preset.fov;
@@ -258,66 +259,77 @@ class CameraSystem {
         break;
       }
 
-      case 'sagrada': {
-        // From Plaça de Gaudí's pond across Carrer de Marina, up the Nativity facade to the towers
+      case 'micalet': {
+        // From Plaça de la Reina up the cathedral's baroque door to the Micalet's belfry
         const sway = Math.sin(elapsed * 0.22) * 4.0;
-        const sf = SITE.sagrada;
-        desiredPos.set(sf.x + 175.0 + sway, 12.0, sf.z - 40.0);
-        desiredLook.set(sf.x, 85.0, sf.z + 4.0);
+        // (from the square's south end: the real buildings close in on every other side)
+        const m = SITE.micalet;
+        desiredPos.set(m.x - 52.0 + sway, 9.0, m.z + 160.0);
+        desiredLook.set(m.x, 34.0, m.z);
         break;
       }
 
-      case 'gracia': {
-        // Down Passeig de Gràcia from La Pedrera toward Casa Batlló & Plaça de Catalunya
-        const sway = Math.sin(elapsed * 0.25) * 1.8;
-        const pe = SITE.pedrera;
-        desiredPos.set(pe.x - 60.0 + sway, 7.5, pe.z + 40.0);
-        desiredLook.set(SITE.batllo.x - 30.0, 22.0, SITE.batllo.z + 120.0);
-        break;
-      }
-
-      case 'rambla': {
-        // Under the plane trees of La Rambla by the Liceu, looking down toward the port
-        const sway = Math.sin(elapsed * 0.3) * 2.0;
-        const r = SITE.rambla;
-        desiredPos.set(r.x - 10.0 + sway, 5.0, r.z - 60.0);
-        desiredLook.set(r.x + 40.0, 12.0, r.z + 260.0);
-        break;
-      }
-
-      case 'catalunya': {
-        // Over Plaça de Catalunya's fountains, the Eixample's cornice line beyond
+      case 'ajuntament': {
+        // Over the square's fountain & flower stalls, the town hall & Correus around it
         const pan = Math.sin(elapsed * 0.16) * 60.0;
-        const c = SITE.catalunya;
-        desiredPos.set(c.x + 60.0, 38.0, c.z + 140.0);
-        desiredLook.set(c.x + pan, 10.0, c.z - 160.0);
+        // from above the square's south end, up its length past the town hall to Correus
+        const c = SITE.ajuntament;
+        desiredPos.set(c.x - 35.0, 32.0, c.z + 45.0);
+        desiredLook.set(c.x + 85.0 + pan, 8.0, c.z - 230.0);
         break;
       }
 
-      case 'glories': {
-        // Up Avinguda Diagonal to Torre Glòries
-        const sway = Math.cos(elapsed * 0.22) * 2.5;
-        const g = SITE.glories;
-        desiredPos.set(g.x - 420.0 + sway, 16.0, g.z - 160.0);
-        desiredLook.set(g.x, 70.0, g.z);
+      case 'serrans': {
+        // From across the Turia's old bed at the city gate's twin towers
+        const sway = Math.sin(elapsed * 0.25) * 2.0;
+        // from the Pont dels Serrans
+        const s = SITE.serrans;
+        desiredPos.set(s.x + 130.0 + sway, 10.0, s.z - 75.0);
+        desiredLook.set(s.x, 20.0, s.z);
+        break;
+      }
+
+      case 'turia': {
+        // Low along the garden in the old riverbed by Gulliver, the bridges overhead
+        const drift = Math.sin(elapsed * 0.12) * 40.0;
+        const g = SITE.gulliver;
+        desiredPos.set(g.x - 120.0 + drift, 14.0, g.z - 260.0);
+        desiredLook.set(g.x + 60.0, 6.0, g.z + 200.0);
+        break;
+      }
+
+      case 'cac': {
+        // Over the pools at Calatrava's white city: the Hemisfèric's eye, the Palau de les Arts' plume beyond
+        const drift = Math.sin(elapsed * 0.12) * 50.0;
+        // at the pool's edge on the Hemisfèric's east side, l'Umbracle's arches behind it (reference/v08-cac-2)
+        const h = SITE.cac;
+        desiredPos.set(h.x + 95.0, 5.5, h.z - 25.0 + drift * 0.3);
+        desiredLook.set(h.x - 20.0, 11.0, h.z + 30.0);
         break;
       }
 
       case 'port': {
-        // Over the Port Vell's water, Colom's column against the old town & Montjuïc
+        // Over the Marina's water at Veles e Vents' stacked white decks
         const drift = Math.sin(elapsed * 0.15) * 30.0;
-        const c = SITE.colom;
-        desiredPos.set(c.x + 260.0 + drift, 30.0, c.z + 260.0);
-        desiredLook.set(c.x, 30.0, c.z);
+        const v = SITE.veles;
+        desiredPos.set(v.x + 220.0 + drift, 30.0, v.z + 200.0);
+        desiredLook.set(v.x, 14.0, v.z);
         break;
       }
 
       case 'beach': {
-        // Out over the sea off the Barceloneta's beach: the W's sail, the old fishermen's quarter, the Olympic towers
-        const drift = Math.sin(elapsed * 0.12) * 60.0;
-        const b = SITE.barceloneta;
-        desiredPos.set(b.x + 240.0 + drift, 45.0, b.z + 560.0);
-        desiredLook.set(b.x + 120.0, 40.0, b.z);
+                const drift = Math.sin(elapsed * 0.12) * 60.0;
+        // on the sand by the water's edge, looking south along the shore (reference/v10-malvarrosa-7)
+        const b = SITE.malvarrosa;
+        desiredPos.set(b.x + 50.0, 4.5, b.z + drift * 0.1);
+        desiredLook.set(b.x + 50.0 - 0.41 * 300.0 + 110.0, 0.5, b.z + 0.91 * 300.0);
+        break;
+      }
+
+      case 'fixed': {
+        // debugging & reference renders (main.js exposes it with ?debug): a still camera at fixedPos looking at fixedLook
+        desiredPos.copy(this.fixedPos || desiredPos);
+        desiredLook.copy(this.fixedLook || desiredLook);
         break;
       }
 
@@ -325,13 +337,10 @@ class CameraSystem {
         const angle = elapsed * 0.07 + 0.65;
         const radius = 720.0 + Math.sin(elapsed * 0.23) * 140.0;
         const alt = 330.0 + Math.cos(elapsed * 0.19) * 90.0;
-        // circling over the Eixample between Plaça de Catalunya & the Sagrada Família
-        desiredPos.set(
-          Math.cos(angle) * radius + 700.0,
-          alt,
-          Math.sin(angle) * radius - 500.0
-        );
-        desiredLook.set(700.0, 60.0, -500.0);
+        // circling over the old town & the Turia between the Micalet and the Ensanche
+        const c = SITE.micalet;
+        desiredPos.set(Math.cos(angle) * radius + c.x, alt, Math.sin(angle) * radius + c.z + 300.0);
+        desiredLook.set(c.x, 40.0, c.z + 300.0);
         break;
       }
     }

@@ -1,30 +1,67 @@
-# Slop Barcelona
+# Slop València
 
-Barcelona en 3D con [three.js](https://threejs.org/), WebGPURenderer y TSL, a escala real: el Eixample de Cerdà con sus illes achaflanadas y sus patios interiores, Ciutat Vella, Gràcia, Sants, el Poblenou y el frente marítimo, con la Sagrada Família, la Pedrera, la Casa Batlló, la Torre Glòries y compañía. Recórrela a pie, en taxi, en bici, en patinete eléctrico o en helicóptero.
+València en 3D con [three.js](https://threejs.org/), WebGPURenderer y TSL, a escala real:
+- Ciutat Vella con el Micalet, la catedral, la Llotja y las torres de Serrans y Quart
+- el Ensanche y Russafa, con su Mercat de Russafa de lamas de colores
+- el Jardí del Túria, la Ciutat de les Arts i les Ciències, Mestalla
+- el puerto, la Marina y la Malva-rosa
 
-Es un remix de [Slop New York](https://github.com/mrdoob/slop-newyork/): el mismo motor (tráfico, peatones, iluminación, materiales TSL, cámaras, audio) alimentado con la geografía real de Barcelona.
+Recórrela a pie, en taxi, en bici, en patinete o en helicóptero.
+
+Es un remix de [Slop Barcelona](https://github.com/biko8/slop-barcelona), a su vez remix de
+[Slop New York](https://github.com/mrdoob/slop-newyork/): el mismo motor (tráfico, peatones, iluminación, materiales
+TSL, cámaras, audio) con la geografía y los edificios reales de València.
 
 ## Ejecutarlo
 
-Es una web estática: sírvela con cualquier servidor (por ejemplo `python3 -m http.server`) y abre `index.html` en un navegador con WebGPU.
+Es una web estática: sírvela con cualquier servidor (`python3 -m http.server`) y abre `index.html` en un navegador
+con WebGPU. La primera carga baja unos 5 MB (código, edificios, árboles y la ortofoto del entorno).
 
-## Los datos
+## Qué es real
 
-Toda la ciudad sale de OpenStreetMap, convertida al marco del mundo: 1 unidad = 1 m, el eje x a lo largo de la cuadrícula del Eixample hacia el Besòs, el z hacia el mar, con el origen en el centro de la Plaça de Catalunya y los ejes girados ~45° como la propia cuadrícula.
+- **Calles, manzanas, parques, costa:** OpenStreetMap (`tools/bcn-extract.py`, `tools/build-bcn-geodata.mjs`). El marco
+  del mundo: 1 unidad = 1 m, origen en la Plaça de l'Ajuntament, ejes girados −28,6° con la cuadrícula del Ensanche.
+- **Edificios:** los 20.028 edificios del Catastro en la ciudad detallada, a su altura medida por PNOA-LiDAR. Por
+  área, el 94 % de las alturas vienen directamente del LiDAR. Los tejados también salen del LiDAR: azoteas a su cota
+  real, 557 tejados a dos aguas y 8.894 casetones. El color de cada tejado sale de la ortofoto PNOA.
+  `tools/realism/build-buildings.py` y `roof-colors.py` generan `js/vlc-buildings.bin.gz`.
+- **Fachadas:** paleta medida en fotos de referencia abiertas, asignada por año de construcción (Catastro), barrio y
+  altura: piedra crema del Ensanche, revocos ocre, salmón y almagra de Ciutat Vella, ladrillo de los 60-70, revoco
+  gris racionalista, blanco moderno, zócalos de azulejo en los Poblats Marítims.
+- **Monumentos:** modelos procedurales propios, dimensionados con el perfil LiDAR de cada uno y con colisiones con la
+  forma de su planta
+  (`tools/realism/landmark-heights.py` → `js/vlc-landmark-heights.js`).
+- **Árboles:** los 86.267 árboles del inventario municipal en la ciudad detallada, con su especie (naranjos, palmeras,
+  plátanos…) y su altura (`fetch-trees.py`, `build-trees.py` → `js/vlc-trees.bin.gz`).
+- **Suelo del entorno:** ortofoto PNOA (`make-ground.py` → `js/vlc-ground.jpg`).
+- **Gente:** además de los peatones de las aceras, la Plaça de l'Ajuntament está llena: 700 personas que pasean,
+  charlan en grupos y se paran a mirar (`js/plaza-crowd.js`).
+- **Comercios:** cada comercio, bar y restaurante de OpenStreetMap (6.403) tiene su rótulo en la fachada donde está,
+  sobre su escaparate. El rótulo dice solo el oficio (FORN, FARMÀCIA, BAR, FRUITERIA…), nunca el nombre del negocio, y
+  sin marcas ni logotipos. Las farmacias llevan su cruz verde y los locales vacíos el cartel de ES LLOGA / SE ALQUILA
+  (`tools/shops-extract.py`, `tools/build-shops.mjs` → `js/vlc-shops.js`, `js/shop-signs.js`).
+- **Autobuses y taxis:** los autobuses llevan líneas y destinos reales de la EMT (relaciones de OpenStreetMap), sin
+  logotipo. Los taxis son blancos, como en València, rotulados con TAXI y su licencia.
+- **Sol:** su posición real sobre València (39,47° N) en cada momento del día.
 
-1. `tools/bcn-extract.py` extrae de un `.osm.pbf` (por ejemplo el de [BBBike](https://download.bbbike.org/osm/bbbike/Barcelona/)) las capas que hacen falta a `tools/data/bcn_*.json`: calles, línea de costa, parques, playas y plazas, edificios (con plantas, altura y orientación), monumentos y mobiliario (semáforos, bocas de metro, Bicing, fuentes). Necesita `pip install osmium`.
+Comprobaciones, contra datos que la construcción no usa (`tools/realism/verify.py`, `docs/realism-plan.md`):
 
-   ```sh
-   python3 tools/bcn-extract.py Barcelona.osm.pbf
-   ```
+| Comprobación | Resultado |
+|---|---|
+| Alturas frente al vuelo LiDAR independiente de 2015 | mediana 0,18 m (antes 5,18 m) |
+| Cota de las azoteas | mediana 0,11 m |
+| Huellas frente al Catastro | IoU 0,90 |
+| Desplazamiento frente al LiDAR | 0–1 m |
+| Alturas de 17 monumentos frente al LiDAR | dentro del 2 % |
 
-2. `tools/build-bcn-geodata.mjs` genera `js/bcn-geodata.js` (la ciudad detallada: tierra y mar, manzanas con sus solares e illes, grafo viario, parques, monumentos, mobiliario) y `js/bcn-metro.js` (los edificios del área metropolitana alrededor).
+## Reconstruir los datos
 
-   ```sh
-   node --max-old-space-size=8192 tools/build-bcn-geodata.mjs
-   ```
-
-Las manzanas se obtienen rasterizando cada calle a su anchura real sobre la tierra, recortando los chaflanes de Cerdà en los cruces de la cuadrícula y etiquetando lo que queda; `js/buildings.js` levanta en cada illa del Eixample sus casas alrededor del patio, un edificio mirando a cada chaflán, y en el casco antiguo casas estrechas a lo largo de las calles, con las alturas que OpenStreetMap da a cada manzana.
+Hace falta un entorno con GDAL, PDAL y GeoPandas (conda-forge: `gdal pdal python-pdal geopandas rasterio`). Los pasos
+y fuentes exactas están en `docs/realism-plan.md`:
+- descarga del Catastro (con su certificado raíz FNMT)
+- teselas LiDAR del CNIG
+- WMTS del IGN
+- API CKAN de València
 
 ## Tests
 
@@ -34,6 +71,15 @@ node --test tests/*.test.cjs tests/*.test.mjs
 
 ## Licencia y datos
 
-El código está bajo la [licencia MIT](LICENSE).
+El código está bajo la [licencia MIT](LICENSE) (© Mr.doob y colaboradores).
 
-Datos geográficos: © [colaboradores de OpenStreetMap](https://www.openstreetmap.org/copyright) (ODbL). Los datos y dependencias de terceros mantienen sus licencias.
+Datos:
+- © [colaboradores de OpenStreetMap](https://www.openstreetmap.org/copyright) (ODbL 1.0); los datos derivados de OSM en
+  `js/` siguen bajo ODbL
+- edificios: Dirección General del Catastro (INSPIRE Buildings, uso libre con mención)
+- LiDAR: LiDAR-PNOA-cob3 2022-2025 y PNOA 2015, CC BY 4.0 scne.es
+- ortofoto: PNOA cedido por © Instituto Geográfico Nacional, CC BY 4.0 scne.es
+- arbolado: Ajuntament de València, Arbratge / Arbolado (CC BY 4.0)
+
+Las fotos de referencia usadas para calibrar fachadas son de Wikimedia Commons (CC BY / CC BY-SA). Solo se usaron como
+referencia visual y no se distribuyen; sus autores están en `reference/credits.json`.

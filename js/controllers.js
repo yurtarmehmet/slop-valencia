@@ -137,30 +137,18 @@ function createTaxiDoorDecalTexture() {
   c.width = 256;
   c.height = 128;
   const ctx = c.getContext('2d');
-  ctx.fillStyle = '#ffc21a';
+  ctx.fillStyle = '#f2f3f1';
   ctx.fillRect(0, 0, 256, 128);
-  // The AMB taxi badge on the yellow door: TAXI, the licence number & the area's shield
-  ctx.fillStyle = '#111317';
-  ctx.beginPath();
-  ctx.moveTo(26, 30);
-  ctx.lineTo(90, 30);
-  ctx.lineTo(90, 78);
-  ctx.quadraticCurveTo(58, 104, 26, 78);
-  ctx.closePath();
-  ctx.fill();
-  ctx.fillStyle = '#ffc21a';
-  ctx.font = '900 18px Inter, Arial, sans-serif';
+  // Plain lettering on the white front door (no emblem): TAXI, the city & the licence number
+  ctx.fillStyle = '#16365f';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText('AMB', 58, 58);
-  ctx.fillStyle = '#111317';
-  ctx.textAlign = 'left';
-  ctx.font = '900 34px Inter, Arial, sans-serif';
-  ctx.fillText('TAXI', 106, 46);
-  ctx.font = '700 15px JetBrains Mono, monospace';
-  ctx.fillText('LLIC. 07248', 106, 76);
-  ctx.font = '600 12px Inter, Arial, sans-serif';
-  ctx.fillText('ÀREA METROPOLITANA', 106, 98);
+  ctx.font = '900 40px "Helvetica Neue", Arial, sans-serif';
+  ctx.fillText('TAXI', 128, 42);
+  ctx.font = '700 17px "Helvetica Neue", Arial, sans-serif';
+  ctx.fillText('VALÈNCIA', 128, 76);
+  ctx.font = '700 15px "Helvetica Neue", Arial, sans-serif';
+  ctx.fillText('LLIC. 0724', 128, 102);
   const tex = new THREE.CanvasTexture(c);
   tex.colorSpace = THREE.SRGBColorSpace;
   return tex;
@@ -494,7 +482,7 @@ class ThirdPersonControllerManager {
     root.add(chassisPivot);
 
     const spec = BODY_SPECS.taxi;
-    const taxiLoftMat = createLoftedCarMaterial(spec, 0x141518);
+    const taxiLoftMat = createLoftedCarMaterial(spec, 0xf2f3f1);
 
     // 1. 3D Lofted Taxi Body + Curved Windscreens + Crowned Roof + Side Mirrors + Roof Sign
     const carBodyGeo = buildCarGeometry(spec, false);
@@ -503,7 +491,7 @@ class ThirdPersonControllerManager {
     carBodyMesh.receiveShadow = true;
     chassisPivot.add(carBodyMesh);
 
-    // 2. The AMB taxi badge on the yellow front doors, hugging their curve
+    // 2. The taxi lettering on the white front doors, hugging their curve
     const doorDecalTex = createTaxiDoorDecalTexture();
     const doorDecalMat = new THREE.MeshStandardNodeMaterial({
       map: doorDecalTex,
@@ -575,7 +563,7 @@ class ThirdPersonControllerManager {
 
     return {
       type: 'car',
-      label: 'Taxi de Barcelona',
+      label: 'Taxi de València',
       mesh: root,
       chassisPivot,
       carState,
