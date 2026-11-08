@@ -24,20 +24,21 @@
   "in_detail": 2680,
   "places_in_detail": 11335
  },
- "vehicles": 53744,
+ "vehicles": 58361,
  "by_kind": {
-  "hatch": 18815,
-  "sedan": 13929,
-  "suv": 10100,
-  "van": 3671,
+  "hatch": 20588,
+  "sedan": 15427,
+  "suv": 11061,
+  "van": 4072,
   "taxi": 224,
-  "moto": 7005
+  "moto": 6989
  },
- "inline_bays": 33369,
- "battery_bays": 22244,
- "bay_line_km": 193.4,
- "container_spots_free": 2158,
- "chains_without_kerb": 1999,
+ "inline_bays": 38841,
+ "battery_bays": 22250,
+ "bay_line_km": 224.6,
+ "container_spots_free": 2340,
+ "chains_without_kerb": 1088,
+ "chains_sided_without_kerb": 911,
  "battery_rows": 590,
  "kerb_lines": 50630,
  "occupancy": {

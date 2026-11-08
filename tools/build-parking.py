@@ -28,6 +28,9 @@ Rules where the data says nothing (documented in the output's header comment):
   cars             real lengths: small hatchback 4.0 m, compact/saloon 4.4-4.5 m, SUV/crossover 4.4-4.6 m, small van
                    4.4 m; 0.5-1.3 m between parked cars; kerb-side wheels 0.2-0.3 m off the kerb
   colours          the Spanish fleet: white, greys and silver about two thirds, then black, blue, red and a few others
+  no kerb line     a bay line with no kerb in reach (newer streets and some boulevards lack bordillos) gets in-line bays
+                   2.2 m deep on the side away from a parallel bay line 2.5-8 m off (the lane between), else away from
+                   the game's roadway centre when the line lies inside that roadway
   heading          in-line cars face the traffic of their side (kerb on the right, or with the one-way flow);
                    battery cars mostly nose in
 
@@ -394,14 +397,18 @@ class Roads:
         G = json.loads(src[i:j].rstrip().rstrip(';'))
         rg = G['roadGraph']
         nodes = rg['nodes']
-        segs, dirs = [], []
-        for a, b, ni, w, lanes, d, inner, *_ in rg['links']:
+        segs, dirs, widths, offs = [], [], [], []
+        for a, b, ni, w, lanes, d, inner, *rest in rg['links']:
             pts = [(nodes[2 * a], nodes[2 * a + 1])] + [(inner[k], inner[k + 1]) for k in range(0, len(inner), 2)] + [(nodes[2 * b], nodes[2 * b + 1])]
             for p, q in zip(pts[:-1], pts[1:]):
                 segs.append((p, q))
                 dirs.append(d)
+                widths.append(w)
+                offs.append(rest[0] if rest else 0)
         self.segs = np.array(segs, dtype=float)
         self.dirs = np.array(dirs)
+        self.widths = np.array(widths, dtype=float)
+        self.offs = np.array(offs, dtype=float)
         mid = self.segs.mean(axis=1)
         self.tree = cKDTree(mid)
 
@@ -425,6 +432,28 @@ class Roads:
         (ax, az), (bx, bz) = self.segs[best]
         s = 1 if (bx - ax) * tx + (bz - az) * tz > 0 else -1
         return s * int(self.dirs[best])
+
+    def across(self, wx, wz, tx, tz, nx, nz):
+        """Signed distance along unit (nx, nz) from the roadway centre (the street's centreline moved by its measured
+        `off`, to the right of a->b) of the nearest street running along (tx, tz), and that street's half width; None
+        when no street runs along within 25 m or its width is unknown."""
+        best, bd = None, 1e9
+        for k in self.tree.query_ball_point([wx, wz], 40):
+            (ax, az), (bx, bz) = self.segs[k]
+            dx, dz = bx - ax, bz - az
+            L = math.hypot(dx, dz) or 1e-9
+            if abs(dx * tx + dz * tz) / L < 0.9:
+                continue
+            t = max(0.0, min(1.0, ((wx - ax) * dx + (wz - az) * dz) / (L * L)))
+            # right of a->b in the world frame is (-dz, dx)
+            cx, cz = ax + dx * t - dz / L * self.offs[k], az + dz * t + dx / L * self.offs[k]
+            d = math.hypot(cx - wx, cz - wz)
+            if d < bd:
+                bd, best = d, (cx, cz, k)
+        if best is None or bd > 25 or self.widths[best[2]] <= 3:
+            return None
+        cx, cz, k = best
+        return (wx - cx) * nx + (wz - cz) * nz, self.widths[k] / 2
 
 
 # ---------------------------------------------------------------------------------------------------------------
@@ -517,13 +546,60 @@ def main():
                 return False
         return True
 
+    # Where the kerb lines (bordillos) leave a bay line without a kerb in reach (newer streets, some boulevards), the
+    # bays lie on the side away from the moving lane: away from a parallel bay line 2.5-8 m off (the lane between two
+    # rows of bays), else away from the game's roadway centre (OSM centreline + measured offset), when the line lies
+    # inside that roadway. The bays are then the usual in-line depth.
+    polys = [chain_polyline(ch, pieces) for ch in chains]
+    line_pts, line_tan, line_id = [], [], []
+    for ci, poly in enumerate(polys):
+        if len(poly) < 2:
+            continue
+        sc, _ = resample(poly, 1)
+        for s in np.arange(0.5, sc[-1], 2.0):
+            p, t = at(poly, sc, s)
+            line_pts.append(p)
+            line_tan.append(t)
+            line_id.append(ci)
+    line_pts, line_tan, line_id = np.array(line_pts), np.array(line_tan), np.array(line_id)
+    line_tree = cKDTree(line_pts)
+    INLINE_DEPTH = 2.2
+
+    def side_without_kerb(ci, poly, s_cum, total):
+        lines, road = [], []
+        for s in np.arange(1.0, max(total - 0.5, 1.5), 3.0):
+            p, t = at(poly, s_cum, s)
+            n = np.array([-t[1], t[0]])
+            across = []
+            for k in line_tree.query_ball_point(p, 8.0):
+                if line_id[k] == ci or abs(float(line_tan[k] @ t)) < 0.95:
+                    continue
+                d = line_pts[k] - p
+                if abs(float(d @ t)) < 3.0 and 2.5 <= abs(float(d @ n)) <= 8.0:
+                    across.append(float(d @ n))
+            if across:
+                lines.append(-1 if min(across, key=abs) > 0 else 1)
+            wx, wz = to_world(p)
+            wn = world_dir(p, n)
+            wt = world_dir(p, t)
+            r = roads.across(wx, wz, wt[0], wt[1], wn[0], wn[1])
+            if r is not None:
+                o, half = r
+                if 1.2 <= abs(o) <= half + 1.5:
+                    road.append(1 if o > 0 else -1)
+        for votes in (lines, road):
+            if len(votes) >= 2 and abs(sum(votes)) >= 0.7 * len(votes):
+                return 1 if sum(votes) > 0 else -1
+        return None
+
     # 4a. In-line bays along each chain
     bay_len_total = 0.0
     battery_bays_plain = [0]
     debug_chains, debug_nokerb = [], []
     inline_bays = 0
-    for chain in chains:
-        poly = chain_polyline(chain, pieces)
+    road_sided = 0
+    for ci, chain in enumerate(chains):
+        poly = polys[ci]
         if len(poly) < 2:
             continue
         s_cum, seg = resample(poly, 1)
@@ -552,9 +628,14 @@ def main():
                     if d is not None and d >= 4.0:
                         votes[side].append(d)
             if len(votes[1]) + len(votes[-1]) < max(1, len(samples) // 2):
-                no_kerb += 1
-                debug_nokerb.append(poly)
-                continue
+                side = side_without_kerb(ci, poly, s_cum, total) if total >= 8.0 else None
+                if side is None:
+                    no_kerb += 1
+                    debug_nokerb.append(poly)
+                    continue
+                road_sided += 1
+                votes = {side: [INLINE_DEPTH], -side: []}
+        if min(votes[1] + votes[-1]) >= 4.0:  # only a battery bay's depth away: the battery row
             side = 1 if len(votes[1]) >= len(votes[-1]) else -1
             depth = float(np.median(votes[side]))
             debug_chains.append((poly, side, depth, cls))
@@ -711,7 +792,7 @@ def main():
     gave_way = before - len(vehicles)
 
     print(f'{inline_bays} in-line bays ({bay_len_total / 1000:.1f} km of bay line), {battery_bays} battery bays between strokes + {battery_bays_plain[0]} along a line, '
-          f'{no_kerb} chains without a kerb in reach, {blocked_by_container} spots left free at containers, '
+          f'{no_kerb} chains without a kerb in reach ({road_sided} more sided by the next bay line or the roadway), {blocked_by_container} spots left free at containers, '
           f'{gave_way} cars removed at moto bays / taxi ranks, {taxis} taxis, {motos} motorbikes')
 
     if os.environ.get('PARKING_DEBUG'):
@@ -762,7 +843,7 @@ def main():
     counts = {KINDS[k]: sum(1 for r in out if r[3] == k) for k in range(len(KINDS))}
     stats.update({'vehicles': len(out), 'by_kind': counts, 'inline_bays': inline_bays, 'battery_bays': battery_bays + battery_bays_plain[0],
                   'bay_line_km': round(bay_len_total / 1000, 1), 'container_spots_free': blocked_by_container,
-                  'chains_without_kerb': no_kerb, 'battery_rows': len(rows), 'kerb_lines': kerbs.count,
+                  'chains_without_kerb': no_kerb, 'chains_sided_without_kerb': road_sided, 'battery_rows': len(rows), 'kerb_lines': kerbs.count,
                   'occupancy': OCCUPANCY, 'containers_in_detail': int(len(cont))})
     json.dump(stats, open(STATS, 'w'), indent=1)
     print(json.dumps(counts), len(out), 'vehicles ->', os.path.relpath(OUT, ROOT), os.path.getsize(OUT), 'bytes')
