@@ -301,10 +301,11 @@ class LightingSystem {
   update(focusPos) {
     // SunLightShadow automatically fits & texel-snaps its 2 cascades to the view camera frustum
     // every frame inside SunShadowNode.renderShadow(), splitting [near, far] halfway between a uniform and a
-    // logarithmic split (the near cascade ends at ~far / 4). Keep far at 300 m at street level so the near cascade
-    // stays sharp, and expand it with altitude (helicopter / observatory) so shadows reach all the way down to street level.
+    // logarithmic split (the near cascade ends at ~far / 4). Keep far at 200 m at street level so the near cascade
+    // stays sharp and the shadow pass skips the far street (a third of the frame at the Plaça de l'Ajuntament), and
+    // expand it with altitude (helicopter / observatory) so shadows reach all the way down to street level.
     const altitude = focusPos && Number.isFinite(focusPos.y) ? Math.max(0, focusPos.y) : 0;
-    this.sunLight.shadow.camera.far = Math.max(300, Math.min(720, 260 + altitude * 1.6));
+    this.sunLight.shadow.camera.far = Math.max(200, Math.min(720, 180 + altitude * 2.4));
   }
 }
 

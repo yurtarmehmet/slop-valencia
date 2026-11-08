@@ -226,6 +226,7 @@ async function initApp() {
     });
   }
 
+  const STREET_FAR = 900;
   // 5. TSL RenderPipeline with Half-Res Screen Space Reflections (SSRNode), Bloom & Filmic Toning
   //    Fade out distant and matte surfaces so SSR spends its rays on visible glossy reflections.
   const scenePass = pass(scene, cameraSystem.camera);
@@ -269,6 +270,8 @@ async function initApp() {
   const reflections = ssrPass.mul(reflectionMask);
   const colorGrade = createPostProcessing(renderer, scenePassColor, reflections);
   const renderPipeline = new THREE.RenderPipeline(renderer, colorGrade.outputNode);
+  // ?debug: the renderer, the pipeline & the lights for frame-cost checks (tools/realism/perf.mjs)
+  if (window.__slop) Object.assign(window.__slop, { renderer, renderPipeline, lightingSystem });
 
   // 6. Wire UI Controls (Strictly using safe DOM APIs: textContent, classList, addEventListener)
   const modeButtons = document.querySelectorAll('[data-mode]');
@@ -740,6 +743,14 @@ async function initApp() {
     if (cityBlocks.updateLights) cityBlocks.updateLights(cameraSystem.camera);
     if (streetDetails.update) streetDetails.update(cameraSystem.camera);
     lightingSystem.update(cameraSystem.currentPos);
+    // Far plane by altitude (frame rate): at street level the buildings beyond ~900 m are hidden or lost in the haze
+    // and still cost a third of the frame; from the air the view opens out to the fogged horizon (cameras.js 60 km).
+    {
+      const cam = cameraSystem.camera;
+      const y = cam.position.y;
+      const far = y < 30 ? STREET_FAR : Math.min(60000, STREET_FAR + (y - 30) * 220);
+      if (Math.abs(cam.far - far) > 1) { cam.far = far; cam.updateProjectionMatrix(); }
+    }
     mapSystem.update();
     audioSystem.update(dt, elapsed, cameraSystem.camera, lightingSystem.activePresetId === 'midnight');
     if (warmedUp) updateSceneCulling(cameraSystem.camera.position); // the warm-up frame draws every chunk
