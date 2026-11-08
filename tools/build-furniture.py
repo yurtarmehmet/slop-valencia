@@ -253,7 +253,7 @@ GEO = json.loads(src[src.index('export const GEO = ') + 19:src.rindex(';')])
 RG = GEO['roadGraph']
 NODES = np.array(RG['nodes'], dtype=float).reshape(-1, 2)
 LINKS = []
-for a, b, name, w, lanes, direction, inner in RG['links']:
+for a, b, name, w, lanes, direction, inner, *_ in RG['links']:
     pts = np.vstack([NODES[a], np.array(inner, dtype=float).reshape(-1, 2), NODES[b]])
     seg = np.diff(pts, axis=0)
     L = np.hypot(seg[:, 0], seg[:, 1])

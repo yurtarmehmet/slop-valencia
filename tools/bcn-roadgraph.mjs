@@ -1,6 +1,7 @@
 // Barcelona's drivable street centrelines as a graph (js/road-network.js builds the traffic lanes from it): every
 // OpenStreetMap way is cut at the nodes it shares with another drivable way (the intersections) and at its ends; the
-// pieces become links between merged nodes, with their curb-to-curb width, travel lanes and direction of travel.
+// pieces become links between merged nodes, with their curb-to-curb width, travel lanes, direction of travel and the
+// roadway centre's offset to the right of the centreline (measured kerbs, tools/bcn-ways.mjs `off`).
 import { geo, rdp, pointInRing, log } from './bcn-base.mjs';
 import { ways } from './bcn-ways.mjs';
 
@@ -55,7 +56,7 @@ export function buildRoadGraph() {
       const a = nodeAt(...piece[0]);
       const b = nodeAt(...piece[piece.length - 1]);
       if (a === b) return;
-      links.push([a, b, nameId(t.name || ''), Math.round(w.w * 10) / 10, lanes, oneway, rdp(piece, 0.4)]);
+      links.push([a, b, nameId(t.name || ''), Math.round(w.w * 10) / 10, lanes, oneway, rdp(piece, 0.4), Math.round((w.off || 0) * 10) / 10]);
     };
     for (let i = 1; i < w.pts.length; i++) {
       piece.push(w.pts[i]);
@@ -73,10 +74,10 @@ export function buildRoadGraph() {
     if (!used.has(i)) { used.set(i, outNodes.length / 2); outNodes.push(Math.round(nodes[i][0] * 10) / 10, Math.round(nodes[i][1] * 10) / 10); }
     return used.get(i);
   };
-  const outLinks = links.map(([a, b, n, w, lanes, dir, line]) => {
+  const outLinks = links.map(([a, b, n, w, lanes, dir, line, off]) => {
     const ia = idOf(a), ib = idOf(b);
     const inner = line.slice(1, -1).flatMap(([x, z]) => [Math.round(x * 10) / 10, Math.round(z * 10) / 10]);
-    return [ia, ib, n, w, lanes, dir, inner];
+    return [ia, ib, n, w, lanes, dir, inner, off];
   });
   log(`road graph: ${outNodes.length / 2} nodes, ${outLinks.length} links from ${drive.length} drivable ways`);
   return { nodes: outNodes, links: outLinks, names };

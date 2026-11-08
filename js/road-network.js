@@ -6,6 +6,7 @@ import {
   BLOCKS
 } from './city-config.js';
 import { GEO } from './bcn-geodata.js';
+import { PARKED } from './vlc-parked.js';
 
 // Drivable road graph derived from the ground layout that city-grid.js actually builds: avenue corridors
 // between the raised curbs, cross-street gaps between curb rows, lanes that keep clear of medians, plazas
@@ -300,7 +301,7 @@ function buildRoadNetwork(sidewalks, obstacles, signalIntersections = []) {
     }
     // Links the grid already carries: most of their length runs along an avenue (north-south) or a cross street
     const links = [];
-    for (const [a, b, ni, w, lanes, dir, inner] of RG.links) {
+    for (const [a, b, ni, w, lanes, dir, inner, off = 0] of RG.links) {
       const pts = [pos[a]];
       for (let k = 0; k < inner.length; k += 2) pts.push({ x: inner[k], z: inner[k + 1] });
       pts.push(pos[b]);
@@ -311,7 +312,7 @@ function buildRoadNetwork(sidewalks, obstacles, signalIntersections = []) {
         if ((Math.abs(dz) > 0.94 && aveAt(x, z, 1.5)) || (Math.abs(dx) > 0.94 && pieceAt(x, z, 1.5, false))) hit++;
       });
       if (n && hit > n * 0.5) continue;
-      links.push({ a, b, name: RG.names[ni], w, lanes, dir, pts, len });
+      links.push({ a, b, name: RG.names[ni], w, lanes, dir, pts, len, off });
     }
     // Junctions a few metres apart (divided roads, offset corners) are one: collapse links under 14 m
     const parent = pos.map((_, i) => i);
@@ -386,16 +387,23 @@ function buildRoadNetwork(sidewalks, obstacles, signalIntersections = []) {
     // Lanes by the street's real curb-to-curb width and direction of travel: one-way streets as wide as the grid's
     // (two lanes from ~9 m), two-way ones a lane each way (two each way from 17 m). Wide or named avenues are major.
     const MAJOR = /\bAVE\b|AVENUE|BROADWAY|BOWERY|BLVD|PARK ROW/;
+    // A tagged lane count (OpenStreetMap `lanes`) caps the lanes the width allows, the rest of the roadway being the
+    // parking along its kerbs (js/vlc-parked.js keeps a parked car out of every moving lane); the lanes are centred on
+    // the roadway between the measured kerbs (`off` to the right of the centreline, so to the left for the back lanes).
     function lanesOf(l) {
       const w = l.w > 3 ? l.w : MAJOR.test(l.name) ? 18 : 9.1;
       const half = w / 2;
       const axis = w >= 14.5 || l.lanes >= 3 || MAJOR.test(l.name) ? 'ave' : 'st';
+      const off = l.off || 0;
       if (l.dir !== 0) {
-        const lanes = laneOffsets(half) || [0];
-        return { half, axis, fwd: l.dir > 0 ? lanes : [], back: l.dir < 0 ? lanes : [] };
+        let lanes = laneOffsets(half) || [0];
+        if (l.lanes > 0 && l.lanes < lanes.length) lanes = Array.from({ length: l.lanes }, (_, i) => (i - (l.lanes - 1) / 2) * 3.6);
+        const shift = (o) => o + (l.dir > 0 ? off : -off);
+        return { half, axis, fwd: l.dir > 0 ? lanes.map(shift) : [], back: l.dir < 0 ? lanes.map(shift) : [] };
       }
-      const each = half >= 8.5 ? [1.8, 5.4] : [1.8];
-      return { half, axis, fwd: each, back: each };
+      let each = half >= 8.5 ? [1.8, 5.4] : [1.8];
+      if (l.lanes > 0) each = each.slice(0, Math.max(1, Math.floor(l.lanes / 2)));
+      return { half, axis, fwd: each.map((o) => o + off), back: each.map((o) => o - off) };
     }
     const DEG = Math.PI / 180;
     for (const l of links) {
@@ -478,6 +486,47 @@ function buildRoadNetwork(sidewalks, obstacles, signalIntersections = []) {
     }
     return true;
   };
+  // València's real parking bays (js/vlc-parked.js, the Ajuntament's bay markings) as car footprints in 16 m cells: a
+  // street's width says how many lanes fit, the bays say how much of it is parking. Where a candidate lane runs over
+  // the bays for PARKED_SHARE of its length it is the parking lane, not a moving one (at least one lane is kept).
+  const PARKED_SHARE = 0.3;
+  const parkedCells = new Map();
+  for (let i = 0; i < PARKED.n; i++) {
+    if (PARKED.kind[i] === 5) continue; // motorbikes stand in boxes at the kerb
+    const x = PARKED.x[i], z = PARKED.z[i];
+    const k = Math.floor(x / 16) * 100000 + Math.floor(z / 16);
+    let list = parkedCells.get(k);
+    if (!list) parkedCells.set(k, (list = []));
+    list.push([x, z, Math.cos(PARKED.yaw[i]), Math.sin(PARKED.yaw[i])]);
+  }
+  // a point within a lane's half width (0.85 m) of a parked car (about 4.5 x 1.9 m, turned by its yaw)
+  const onParked = (x, z) => {
+    for (let ix = Math.floor((x - 4) / 16); ix <= Math.floor((x + 4) / 16); ix++) {
+      for (let iz = Math.floor((z - 4) / 16); iz <= Math.floor((z + 4) / 16); iz++) {
+        for (const [px, pz, cs, sn] of parkedCells.get(ix * 100000 + iz) || []) {
+          const ex = x - px, ez = z - pz;
+          // car frame: +x -> (cs, -sn), +z (length) -> (sn, cs)
+          if (Math.abs(ex * cs - ez * sn) < 0.93 + 0.85 && Math.abs(ex * sn + ez * cs) < 2.25 + 0.85) return true;
+        }
+      }
+    }
+    return false;
+  };
+  const parkedShare = (x0, z0, dx, dz, span, o) => {
+    const clear = Math.min(12, span / 2);
+    let n = 0, hit = 0;
+    for (let t = clear; t <= span - clear + 1e-6; t += 2.5) {
+      n++;
+      if (onParked(x0 + dx * t - dz * o, z0 + dz * t + dx * o)) hit++;
+    }
+    return n ? hit / n : 0;
+  };
+  const movingLanes = (x0, z0, dx, dz, span, open) => {
+    if (open.length < 2) return open;
+    const share = open.map((o) => parkedShare(x0, z0, dx, dz, span, o));
+    const best = Math.min(...share);
+    return open.filter((o, i) => share[i] < PARKED_SHARE || share[i] === best);
+  };
   function addEdgeGeneral(from, to, axis, lanes, half, divided) {
     const x0 = from.x;
     const z0 = from.z;
@@ -485,7 +534,7 @@ function buildRoadNetwork(sidewalks, obstacles, signalIntersections = []) {
     if (span < 8) return;
     const dx = (to.x - x0) / span;
     const dz = (to.z - z0) / span;
-    const open = lanes.filter((o) => laneOpen(x0, z0, dx, dz, span, o));
+    const open = movingLanes(x0, z0, dx, dz, span, lanes.filter((o) => laneOpen(x0, z0, dx, dz, span, o)));
     if (!open.length) return;
     edges.push({ from, to, axis, x0, z0, dx, dz, rx: -dz, rz: dx, span, half, lanes: open.sort((p, q) => p - q), moves: [], general: true, cand: lanes, divided: !!divided });
   }
@@ -581,7 +630,8 @@ function buildRoadNetwork(sidewalks, obstacles, signalIntersections = []) {
       }
     }
     for (const [e, other] of partner) {
-      e.lanes = e.cand.map((o) => o - e.cand[0] + 1.8).filter((o) => laneOpen(e.x0, e.z0, e.dx, e.dz, e.span, o));
+      e.lanes = movingLanes(e.x0, e.z0, e.dx, e.dz, e.span,
+        e.cand.map((o) => o - e.cand[0] + 1.8).filter((o) => laneOpen(e.x0, e.z0, e.dx, e.dz, e.span, o)));
       e.half += other;
       if (e.half >= 7.25) e.axis = 'ave'; // as wide as a major road (see lanesOf)
       e.divided = true;

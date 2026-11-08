@@ -395,7 +395,7 @@ class Roads:
         rg = G['roadGraph']
         nodes = rg['nodes']
         segs, dirs = [], []
-        for a, b, ni, w, lanes, d, inner in rg['links']:
+        for a, b, ni, w, lanes, d, inner, *_ in rg['links']:
             pts = [(nodes[2 * a], nodes[2 * a + 1])] + [(inner[k], inner[k + 1]) for k in range(0, len(inner), 2)] + [(nodes[2 * b], nodes[2 * b + 1])]
             for p, q in zip(pts[:-1], pts[1:]):
                 segs.append((p, q))
