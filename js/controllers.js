@@ -5,6 +5,7 @@ import {
   getIslandBoundsAtZ,
   isTypingInField,
   blockAt,
+  stoneLaneHeightAt,
 } from './city-config.js';
 import { cityUniforms, createCarPaintMaterial, createContactShadowMaterial } from './tsl-materials.js';
 import {
@@ -1001,7 +1002,9 @@ class ThirdPersonControllerManager {
     // Pedestrians and scooters ride up onto the curbs, plazas & promenades
     if (mode === 'person' || mode === 'scooter') {
       if (this.isPointInPavedPark(x, z)) return ISLAND_BOUNDS.parkPavingHeight;
-      return this.isPointOnSidewalk(x, z) ? ISLAND_BOUNDS.sidewalkHeight : 0.0;
+      if (this.isPointOnSidewalk(x, z)) return ISLAND_BOUNDS.sidewalkHeight;
+      // Ciutat Vella's single-level pedestrian streets, level with the sidewalks
+      return Math.max(0.0, stoneLaneHeightAt(x, z));
     }
     return 0.0;
   }

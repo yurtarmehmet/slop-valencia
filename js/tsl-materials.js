@@ -1840,9 +1840,10 @@ function createRoadSurfaceMaterial() {
     roughness: 0.9
   });
 
-  // València's sun-bleached asphalt: a pale warm grey (Street View median sRGB 136, 133, 133 at midday)
-  const cAsphaltDark = color(0x4a443c);
-  const cAsphaltLight = color(0x615a52);
+  // València's sun-bleached asphalt: a pale, nearly neutral grey (Street View median sRGB 134, 133, 132 on the main
+  // set, 120, 117, 120 on the held-out one, at midday)
+  const cAsphaltDark = color(0x39362f);
+  const cAsphaltLight = color(0x4c4842);
 
   // Puddle field & wetness masks shared by every channel below (each node is generated once per fragment)
   const puddleField = roadPuddleField(positionWorld.x, positionWorld.z);

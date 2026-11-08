@@ -3,6 +3,7 @@ import { createRoadPaintMaterial, createStoneLaneMaterial } from './tsl-material
 import { buildGroundDecals } from './vlc-ground-decals.js';
 import { REAL_MARKINGS } from './vlc-markings.js';
 import { STONE_LANES } from './vlc-stone-lanes.js';
+import { laneProfile } from './city-config.js';
 
 // València's road markings where the city painted them (js/vlc-markings.js: the Ajuntament's Senyalització
 // horitzontal, rebuilt as strokes & polygons by tools/build-markings.py): white lane lines, zebra crossings, stop bars,
@@ -16,7 +17,9 @@ const CELL = 400;
 const DRAW_DISTANCE = 650;
 
 // The old town's stone lanes & the streets paved in setts or slabs (js/vlc-stone-lanes.js, tools/build-kerbs.py): flat
-// strips between the facades (kerb-free shared lanes) or the kerbs, just over the asphalt and under the paint
+// strips between the facades (kerb-free shared lanes) or the kerbs, just over the asphalt and under the paint. The
+// single-level pedestrian streets (`s`) lie level with the sidewalks (city-config.js laneProfile: ramped down at open
+// ends), hiding the kerbs, with a skirt down each edge to the asphalt.
 function buildStoneLanes(scene) {
   const position = [];
   const paving = [];
@@ -25,7 +28,10 @@ function buildStoneLanes(scene) {
     const p = lane.pts;
     const n = p.length;
     if (n < 2) continue;
+    const level = lane.s === 1;
+    const prof = level ? laneProfile(lane) : null;
     const base = position.length / 3;
+    const edges = [];
     for (let i = 0; i < n; i++) {
       // mitred normal (to the right of the lane's direction: x = -dz, z = dx), miters clamped to twice the width
       let nx = 0, nz = 0, ax = 0, az = 0;
@@ -41,10 +47,27 @@ function buildStoneLanes(scene) {
       const m = 1 / Math.max(0.5, nx * ax + nz * az);
       // a little past the kerbs & facades, which hide the edges
       const l = (lane.l + 0.3) * m, r = (lane.r + 0.3) * m;
-      position.push(p[i][0] - nx * l, 0.006, p[i][1] - nz * l, p[i][0] + nx * r, 0.006, p[i][1] + nz * r);
+      const y = level ? prof[i][1] : 0.006;
+      position.push(p[i][0] - nx * l, y, p[i][1] - nz * l, p[i][0] + nx * r, y, p[i][1] + nz * r);
       paving.push(lane.p, lane.p);
+      edges.push([p[i][0] - nx * l, p[i][1] - nz * l, p[i][0] + nx * r, p[i][1] + nz * r, y]);
       if (i > 0) {
         const a = base + (i - 1) * 2;
+        index.push(a, a + 1, a + 3, a, a + 3, a + 2);
+      }
+    }
+    if (!level) continue;
+    // skirts: each edge dropped to the asphalt (seen where the lane runs past a gap in the facades)
+    for (const side of [0, 1]) {
+      const sb = position.length / 3;
+      for (const e of edges) {
+        const ex = side ? e[2] : e[0], ez = side ? e[3] : e[1];
+        position.push(ex, e[4], ez, ex, 0, ez);
+        paving.push(lane.p, lane.p);
+      }
+      for (let i = 1; i < edges.length; i++) {
+        const a = sb + (i - 1) * 2;
+        // outward-facing either way round: the material is double-sided
         index.push(a, a + 1, a + 3, a, a + 3, a + 2);
       }
     }
@@ -61,6 +84,7 @@ function buildStoneLanes(scene) {
   geometry.setIndex(index);
   const material = createStoneLaneMaterial();
   material.name = 'stonelane';
+  material.side = THREE.DoubleSide; // the level lanes' skirts
   const mesh = new THREE.Mesh(geometry, material);
   mesh.name = 'StoneLanes';
   mesh.receiveShadow = true;
