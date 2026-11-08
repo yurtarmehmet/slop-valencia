@@ -431,7 +431,7 @@ function buildStreetDetails(scene) {
       const b = blockAt(t.x, t.z);
       if (!b || !onLand(t.x, t.z)) { dropped++; continue; }
       const park = b.park > 0.6;
-      const tree = { x: t.x, y: park ? 0.26 : 0.22, z: t.z, scale: t.scale, species: t.species, yaw: t.yaw, tier: park ? 0 : 1 };
+      const tree = { x: t.x, y: park ? 0.26 : 0.22, z: t.z, height: t.height, crown: t.crown, species: t.species, yaw: t.yaw, tier: park ? 0 : 1 };
       treePositions.push(tree);
     }
     console.info(`[streetDetails] ${treePositions.length} trees from the municipal inventory (${dropped} off the engine's blocks dropped)`);

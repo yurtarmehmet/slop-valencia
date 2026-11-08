@@ -416,13 +416,14 @@ const SPECIES = [
   },
   { // 3: Palm (Washingtonia, Phoenix, the city's 22,000 palms): a tall bare trunk, a crown of long fronds arching out
     //    & drooping at the top, their leaflets the feathery cards
-    name: 'palm', tile: 1,
+    //    (the dense clump tile: a frond reads as a solid green fan from the street, not as feathery leaflets)
+    name: 'palm', tile: 3,
     trunk: { r: 0.3, top: 10.2, lean: 0.035, segs: 8 },
-    limbs: { n: 14, y: [9.9, 10.2], tilt: [1.3, 0.62], len: [3.4, 2.8], r: 0.16, up: 0, out: 0, droop: 0.24, jitter: 0.2, segs: 5 },
-    branches: { n: 4, t: [0.25, 1.0], angle: [0.55, 0.75], len: [0.32, 0.22], up: 0, out: 0, droop: 0.12, jitter: 0.1, segs: 2 },
+    limbs: { n: 18, y: [9.8, 10.2], tilt: [1.3, 0.5], len: [3.4, 2.6], r: 0.16, up: 0, out: 0, droop: 0.24, jitter: 0.2, segs: 5 },
+    branches: { n: 6, t: [0.2, 1.0], angle: [0.55, 0.75], len: [0.32, 0.22], up: 0, out: 0, droop: 0.12, jitter: 0.1, segs: 2 },
     twigs: { n: 2, t: [0.4, 1.0], angle: [0.5, 0.8], len: [0.7, 0.5], up: 0, out: 0, droop: 0.12, jitter: 0.1, segs: 2 },
-    cards: { perTwig: 2, scale: [0.8, 1.0], droop: 0.5 },
-    tints: [0x4e6b2e, 0x5c7a34, 0x45602a]
+    cards: { perTwig: 2, scale: [0.9, 1.15], droop: 0.5 },
+    tints: [0x8a9a48, 0x9aa852, 0x7d8c40] // the clump tile is dark; sunlit fronds read light olive
   },
   { // 4: Bitter orange (Citrus aurantium, the city's most planted street tree): a short trunk under a dense, rounded,
     //    dark glossy crown
@@ -878,6 +879,13 @@ function createTreeField(scene, sites) {
   const meshes = [];
   const counts = [];
 
+  // Natural size of each species' geometry (top height, crown diameter), so a tree with a measured height and crown
+  // (vlc-trees.js: PNOA-LiDAR) is scaled to exactly that
+  const natural = geos.map((g) => {
+    const b = g[0][0].boundingBox;
+    return { h: b.max.y, d: ((b.max.x - b.min.x) + (b.max.z - b.min.z)) / 2 };
+  });
+
   const dummy = new THREE.Object3D();
   const tint = new THREE.Color();
   sites.forEach((t, i) => {
@@ -886,10 +894,19 @@ function createTreeField(scene, sites) {
     const r2 = hashPos(t.z, 7.1, t.x);
     const r3 = hashPos(t.x + t.z, 3.3, 0.7);
     const variant = hashPos(t.x, 5.9, t.z) < 0.5 ? 0 : 1;
-    const s = t.scale * (0.9 + r1 * 0.2);
+    let s = t.scale * (0.9 + r1 * 0.2);
     dummy.position.set(t.x, t.y || 0, t.z);
     dummy.rotation.set(0, t.yaw ?? r2 * Math.PI * 2, 0);
-    dummy.scale.set(s * (0.9 + r3 * 0.2) * (t.sx || 1), s * (0.88 + r1 * 0.24), s * (0.9 + r2 * 0.2) * (t.sz || 1));
+    if (t.height > 0) {
+      // measured: height and crown as surveyed (the crown kept within 0.45-2.2x the height's scale so the geometry
+      // stays a tree), a little jitter round them
+      const n = natural[sp];
+      s = (t.height / n.h) * (0.96 + r1 * 0.08);
+      const w = Math.min(s * 2.2, Math.max(s * 0.45, (t.crown > 0 ? t.crown : t.height * 0.7) / n.d));
+      dummy.scale.set(w * (0.94 + r3 * 0.12), s, w * (0.94 + r2 * 0.12));
+    } else {
+      dummy.scale.set(s * (0.9 + r3 * 0.2) * (t.sx || 1), s * (0.88 + r1 * 0.24), s * (0.9 + r2 * 0.2) * (t.sz || 1));
+    }
     dummy.updateMatrix();
     dummy.matrix.toArray(mats, i * 16);
     tint.setHex(SPECIES[sp].tints[Math.floor(r3 * 2.999)]).multiplyScalar(0.82 + r1 * 0.36);

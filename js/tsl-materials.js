@@ -1482,7 +1482,8 @@ function createTreeMaterial(leafAtlas) {
     // Leaves: per-tree tint x atlas brightness, a share of sun-yellowed and of cooler leaves, brown twigs & stalks,
     // darker deep in the crown
     const tint = aData.xyz;
-    const base = tint.mul(leaf.r.mul(1.4));
+    // (sunlit Mediterranean canopy reads olive in photos: a little darker and yellower than the species tint)
+    const base = tint.mul(leaf.r.mul(1.2)).mul(vec3(1.0, 0.95, 0.62));
     const warm = smoothstep(0.62, 1.0, leaf.g).mul(0.55);
     const cool = smoothstep(0.38, 0.0, leaf.g).mul(0.45);
     const leafCol = mix(mix(base, base.mul(vec3(1.25, 1.08, 0.5)), warm), base.mul(vec3(0.8, 0.92, 1.05)), cool);
@@ -1500,7 +1501,7 @@ function createTreeMaterial(leafAtlas) {
     return vec4(mix(bark, foliage, isLeaf), alpha);
   })();
 
-  mat.roughnessNode = mix(float(0.93), float(0.72).sub(leaf.r.mul(0.1)), isLeaf);
+  mat.roughnessNode = mix(float(0.93), float(0.86).sub(leaf.r.mul(0.06)), isLeaf);
 
   // Card normals are crown-shell normals on both faces: no back-face flip
   mat.normalNode = normalViewGeometry;
