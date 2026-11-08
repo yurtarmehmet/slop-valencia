@@ -1767,6 +1767,7 @@ function createTrafficSystem(scene, sidewalks, obstacles, signalIntersections) {
     cars,
     buses,
     peds: pedestrianSystem.peds,
+    footfall: pedestrianSystem.footfall,
     network
   };
 }

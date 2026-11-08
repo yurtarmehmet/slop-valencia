@@ -157,6 +157,7 @@ async function initApp() {
     window.__slop = {
       scene,
       trafficSystem,
+      plazaCrowd,
       cameraSystem,
       controllerManager,
       landmarkTops,

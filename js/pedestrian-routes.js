@@ -35,13 +35,51 @@ function createPedestrianRoutes({ walkable, onSidewalk }, blockAt) {
         const a = { x: e.sx + e.rx * off, z: e.sz + e.rz * off };
         const b = { x: a.x + e.dx * e.len, z: a.z + e.dz * e.len };
         const block = blockAt(a.x, a.z);
-        if (!block || blockAt(b.x, b.z) !== block || !clear(a, b, block)) continue;
-        if (!e.general && (!onSidewalk(a.x, a.z) || !onSidewalk(b.x, b.z))) continue;
-        result.push(segment(a, b, { edge: e, from: e.from, to: e.to, block }));
-        found++;
+        if (block && blockAt(b.x, b.z) === block && clear(a, b, block)
+          && (e.general || (onSidewalk(a.x, a.z) && onSidewalk(b.x, b.z)))) {
+          result.push(segment(a, b, { edge: e, from: e.from, to: e.to, block }));
+          found++;
+          continue;
+        }
+        // The whole line misses: a chamfered corner (the Eixample's xamfrans), a side street the road graph leaves
+        // out, a kiosk. Walk the clear stretches of it instead; an end short of the junction is a dead end where
+        // people turn round.
+        for (const run of clearRuns(e, off)) {
+          result.push(segment(run.a, run.b, { edge: e, from: run.t0 < 1 ? e.from : null, to: run.t1 > e.len - 1 ? e.to : null, block: run.block }));
+          found++;
+        }
       }
     }
     return result;
+  }
+
+  // Stretches (>= MIN_RUN m) of the line `off` metres right of edge e that stay on one curb island, on the sidewalk
+  // and clear of anything solid
+  const MIN_RUN = 8;
+  function clearRuns(e, off) {
+    const runs = [];
+    const at = (t) => ({ x: e.sx + e.rx * off + e.dx * t, z: e.sz + e.rz * off + e.dz * t });
+    const ok = (t, block) => {
+      const p = at(t);
+      return blockAt(p.x, p.z) === block && (e.general || onSidewalk(p.x, p.z))
+        && walkable(p.x - 0.4, p.x + 0.4, p.z - 0.4, p.z + 0.4);
+    };
+    const steps = Math.floor(e.len);
+    let start = -1, block = null;
+    const close = (end) => {
+      const t0 = start + 0.5, t1 = end - 0.5;
+      if (t1 - t0 >= MIN_RUN) runs.push({ a: at(t0), b: at(t1), t0, t1, block });
+      start = -1;
+    };
+    for (let i = 0; i <= steps; i++) {
+      const t = Math.min(i, e.len);
+      if (start >= 0 && ok(t, block)) continue;
+      if (start >= 0) close(i - 1);
+      const p = at(t), b = blockAt(p.x, p.z);
+      if (b && ok(t, b)) { start = t; block = b; }
+    }
+    if (start >= 0) close(e.len);
+    return runs;
   }
 
   function across(n) {
