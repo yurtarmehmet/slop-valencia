@@ -821,7 +821,7 @@ function buildTreeGeometries(speciesIndex, variant, tileMeters) {
 // 5. TREE FIELD: per-tree level of detail, with spatial cells culled separately in the view and shadow passes
 // =====================================================================================================================
 const TREE_CELL_SIZE = 200;
-const LOD_NEAR = 105; // full detail within (m)
+const LOD_NEAR = 50; // full detail within (m): beyond it lod 1 reads the same at street level and costs less
 const LOD_MID = 420; // coarse cards & branches within; whole-crown cards beyond
 const LOD_HYSTERESIS = 6;
 // Draw distance per tier (0 park & plaza, 1 avenue & esplanade, 2 cross-street); at street level everything beyond

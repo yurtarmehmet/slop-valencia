@@ -79,7 +79,34 @@ Datos:
 - edificios: Dirección General del Catastro (INSPIRE Buildings, uso libre con mención)
 - LiDAR: LiDAR-PNOA-cob3 2022-2025 y PNOA 2015, CC BY 4.0 scne.es
 - ortofoto: PNOA cedido por © Instituto Geográfico Nacional, CC BY 4.0 scne.es
-- arbolado: Ajuntament de València, Arbratge / Arbolado (CC BY 4.0)
+- Font: Ajuntament de València, [portal de datos abiertos](https://opendata.vlci.valencia.es/) (CC BY 4.0). Conjuntos
+  usados (descargas, sumas y fechas en `tools/data/vlci-manifest.json`):
+  - [Arbolado](https://opendata.vlci.valencia.es/dataset/arbratge-arbolado): árboles
+  - [Mobiliario urbano](https://opendata.vlci.valencia.es/dataset/servicios-e-instalaciones): farolas
+  - [Cartografía Base Bordillos](https://opendata.vlci.valencia.es/dataset/cartografia-base-vorades-bordillos): bordillos, imbornales y plazas de aparcamiento
+  - [Señalización Horizontal](https://opendata.vlci.valencia.es/dataset/senalizacion-horizontal): marcas viales
+  - [Aparcamientos no Regulados](https://opendata.vlci.valencia.es/dataset/aparcaments-no-regulats-aparcamientos-no-regulados): coches aparcados
+  - [Aparcamientos ORA](https://opendata.vlci.valencia.es/dataset/aparcaments-ora-aparcamientos-ora): coches aparcados
+  - [Aparcamiento para motos](https://opendata.vlci.valencia.es/dataset/aparcament-per-a-motos-aparcamiento-para-motos): motos aparcadas
+  - [Taxis](https://opendata.vlci.valencia.es/dataset/taxis): paradas de taxi
+  - [Imbornales](https://opendata.vlci.valencia.es/dataset/embornals-imbornales): imbornales
+  - [Contenedores residuos sólidos](https://opendata.vlci.valencia.es/dataset/contenidors-residus-solids-contenidores-residuos-solidos): contenedores
+  - [Contenedores Vidrio](https://opendata.vlci.valencia.es/dataset/contenidors-vidre-contenedores-vidrio): contenedores
+  - [Papeleras](https://opendata.vlci.valencia.es/dataset/papereres-papeleras): papeleras
+  - [Bancos en vía pública](https://opendata.vlci.valencia.es/dataset/bancs-en-via-publica-bancos-en-via-publica): bancos
+  - [Fuentes de Agua Pública](https://opendata.vlci.valencia.es/dataset/fonts-daigua-publica-fuentes-de-agua-publica): fuentes
+  - [Bolardos extraibles](https://opendata.vlci.valencia.es/dataset/pilons-extraibles-bolardos-extraibles): bolardos
+  - [Aparcamientos Bicicletas](https://opendata.vlci.valencia.es/dataset/aparcaments-bicicletes-aparcamientos-bicicletas): aparcabicis
+  - [EMT](https://opendata.vlci.valencia.es/dataset/emt): paradas de autobús
+  - [Quiosco ONCE](https://opendata.vlci.valencia.es/dataset/quiosc-once-quiosco-once): quioscos
+  - [Quioscos flores](https://opendata.vlci.valencia.es/dataset/quioscs-flors-quioscos-flores): quioscos
+  - [Quioscos prensa](https://opendata.vlci.valencia.es/dataset/quioscs-premsa-quioscos-prensa): quioscos
+  - [Cartografía Base Toponimia](https://opendata.vlci.valencia.es/dataset/cartografia-base-toponimia-toponimia): placas de calle
+  - [Ejes lineales de las calles](https://opendata.vlci.valencia.es/dataset/eixos-lineals-dels-carrers): placas de calle
+  - [Portales de las calles](https://opendata.vlci.valencia.es/dataset/portals-dels-carrers-portales-de-las-calles): números de portal
+  - [Manzanas catastrales con datos de población](https://opendata.vlci.valencia.es/dataset/illa-de-cases-cadastrals-amb-dades-de-poblacio): densidad de peatones
+  - [Barrios](https://opendata.vlci.valencia.es/dataset/barris-barrios): densidad de peatones
+  - [Aparcamientos por distritos-barrios](https://opendata.vlci.valencia.es/dataset/car-parks-by-districts-neighborhoods): densidad de peatones
 
 Las fotos de referencia usadas para calibrar fachadas son de Wikimedia Commons (CC BY / CC BY-SA). Solo se usaron como
 referencia visual y no se distribuyen; sus autores están en `reference/credits.json`.
