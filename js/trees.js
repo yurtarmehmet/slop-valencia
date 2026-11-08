@@ -827,7 +827,7 @@ const LOD_HYSTERESIS = 6;
 // Draw distance per tier (0 park & plaza, 1 avenue & esplanade, 2 cross-street); at street level everything beyond
 // LOW_CUTOFF is behind the buildings anyway
 const MAX_DIST = [3000, 1600, 950];
-const LOW_CUTOFF = 1150;
+const LOW_CUTOFF = 600;
 
 function hashPos(x, y, z) {
   const s = Math.sin(x * 127.1 + y * 311.7 + z * 74.7) * 43758.5453;

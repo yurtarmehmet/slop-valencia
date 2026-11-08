@@ -427,14 +427,17 @@ function buildStreetDetails(scene) {
   const realTrees = REAL_TREES && REAL_TREES.length ? REAL_TREES : null;
   if (realTrees) {
     let dropped = 0;
+    let thinned = 0;
     for (const t of realTrees) {
+      // Every other tree, by a fixed hash of its place (frame rate: the trees are the costliest street detail)
+      if (hashPos(t.x, 3.1, t.z) < 0.5) { thinned++; continue; }
       const b = blockAt(t.x, t.z);
       if (!b || !onLand(t.x, t.z)) { dropped++; continue; }
       const park = b.park > 0.6;
       const tree = { x: t.x, y: park ? 0.26 : 0.22, z: t.z, height: t.height, crown: t.crown, species: t.species, yaw: t.yaw, tier: park ? 0 : 1 };
       treePositions.push(tree);
     }
-    console.info(`[streetDetails] ${treePositions.length} trees from the municipal inventory (${dropped} off the engine's blocks dropped)`);
+    console.info(`[streetDetails] ${treePositions.length} trees from the municipal inventory (${thinned} thinned out, ${dropped} off the engine's blocks dropped)`);
   }
 
   // A. The squares, the parks & the plazas (sites laid out by city-grid.js)

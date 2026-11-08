@@ -12,7 +12,6 @@ import { buildStreetDetails } from './street-details.js';
 import { buildFurniture } from './vlc-furniture.js';
 import { buildStreetPlates } from './vlc-plates.js';
 import { createTrafficSystem, createHighwayTraffic } from './traffic.js';
-import { buildParkedVehicles } from './vlc-parked.js';
 import { createPlazaCrowd } from './plaza-crowd.js';
 import { setFootfallTime } from './vlc-footfall.js';
 import { buildRoadPaint } from './road-paint.js';
@@ -106,10 +105,8 @@ async function initApp() {
   ], streetDetails.signalIntersections);
   markInit('traffic');
   const highwayTraffic = createHighwayTraffic(scene, cityGrid.highwayLanes);
-  // Parked cars & motorbikes in the real bays (vlc-parked.js, culls itself), solid to the player like the buildings
-  const parkedVehicles = buildParkedVehicles(scene, { network: trafficSystem.network });
-  for (const c of parkedVehicles.colliders) allColliders.push(c);
-  markInit('parked');
+  // No parked cars drawn (frame rate): vlc-parked.js still feeds the road network, whose moving lanes give way to the
+  // real parking bays, and buildParkedVehicles() can put them back.
   buildRoadPaint(scene, trafficSystem.network);
   markInit('roadPaint');
 
@@ -746,7 +743,6 @@ async function initApp() {
     mapSystem.update();
     audioSystem.update(dt, elapsed, cameraSystem.camera, lightingSystem.activePresetId === 'midnight');
     if (warmedUp) updateSceneCulling(cameraSystem.camera.position); // the warm-up frame draws every chunk
-    parkedVehicles.update(cameraSystem.camera.position);
     if (warmedUp) furniture.update(cameraSystem.camera.position);
     streetPlates.update(cameraSystem.camera.position);
     // Traffic collisions can move the player after controller updates; finalize moving hierarchies here.
