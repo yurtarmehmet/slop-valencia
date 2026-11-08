@@ -6,7 +6,9 @@ usage: python3 -I tools/fences-extract.py path/to/valencia-latest.osm.pbf
 Output: [[osm id, barrier, fence_type, height, [[lon, lat], ...]], ...] for every way tagged barrier=fence, railing,
 guard_rail or handrail inside the bounding box (park and school railings, sports-ground and building-site fences,
 bridge and stair railings: what segments as "fence" in the Street View comparison). Walls and hedges are left out
-(they segment as wall / vegetation). tools/build-fences.py turns them into js/vlc-fences.js.
+(they segment as wall / vegetation). Also the outlines of closed leisure=pitch and leisure=playground ways, as
+barrier "pitch" / "playground" with the sport tag in the fence_type slot: València's courts are caged in tall mesh and
+its playgrounds ringed by a low railing, mostly unmapped as barriers (tools/build-fences.py decides which to keep). tools/build-fences.py turns them into js/vlc-fences.js.
 © OpenStreetMap contributors, ODbL 1.0.
 """
 import json
@@ -27,7 +29,10 @@ class Fences(osmium.SimpleHandler):
 
     def way(self, w):
         b = w.tags.get('barrier')
-        if b not in KINDS:
+        lei = w.tags.get('leisure')
+        if b not in KINDS and lei in ('pitch', 'playground') and w.is_closed():
+            b = lei
+        elif b not in KINDS:
             return
         try:
             pts = [[round(n.lon, 7), round(n.lat, 7)] for n in w.nodes]
@@ -35,7 +40,8 @@ class Fences(osmium.SimpleHandler):
             return
         if len(pts) < 2 or not all(BBOX[0] < la < BBOX[2] and BBOX[1] < lo < BBOX[3] for lo, la in pts):
             return
-        self.out.append([w.id, b, w.tags.get('fence_type', ''), w.tags.get('height', ''), pts])
+        ftype = w.tags.get('sport', '') if b in ('pitch', 'playground') else w.tags.get('fence_type', '')
+        self.out.append([w.id, b, ftype, w.tags.get('height', '') if b in KINDS else '', pts])
 
 
 def main():
