@@ -21,19 +21,13 @@ import { planStreetLamps, streetWallsFrom, LAMP_TYPES, T } from './street-lamps-
 
 const cyl = (rt, rb, h, seg, x, y, z) => new THREE.CylinderGeometry(rt, rb, h, seg).translate(x, y, z);
 const box = (w, h, d, x, y, z) => new THREE.BoxGeometry(w, h, d).translate(x, y, z);
-// an arc of iron bar in the model's x-y plane: centre (cx, cy), radius r, from angle a0 to a1
-const arc = (r, a0, a1, cx, cy, tube = 0.016, z = 0) =>
-  new THREE.TorusGeometry(r, tube, 4, 8, a1 - a0).rotateZ(a0).translate(cx, cy, z);
 
-// The Fernandine lantern, base at y = 0: drop finial, cup, flaring hexagonal glass, crowned roof with a finial
+// The Fernandine lantern, base at y = 0: cup, hexagonal glass and roof. Kept to the fewest parts that still read as the
+// lantern (frame rate: ~29,000 lamps, the costliest street detail when they were modelled with rings & curls)
 function lantern(s = 1) {
   const frame = [
-    cyl(0.03, 0.002, 0.1, 6, 0, -0.04, 0),
-    cyl(0.13, 0.07, 0.08, 6, 0, 0.04, 0),
-    cyl(0.215, 0.205, 0.045, 6, 0, 0.5, 0),
-    cyl(0.05, 0.245, 0.17, 6, 0, 0.605, 0),
-    cyl(0.055, 0.055, 0.07, 6, 0, 0.72, 0),
-    new THREE.SphereGeometry(0.035, 6, 4).translate(0, 0.785, 0)
+    cyl(0.13, 0.07, 0.1, 6, 0, 0.03, 0),
+    cyl(0.05, 0.245, 0.22, 6, 0, 0.59, 0)
   ];
   const glass = [cyl(0.2, 0.125, 0.4, 6, 0, 0.28, 0)];
   const sc = (g) => g.scale(s, s, s);
@@ -44,57 +38,38 @@ const nonIndexed = (gs) => mergeGeometries(gs.map((g) => (g.index ? g.toNonIndex
 
 // Each model: { body: BufferGeometry (iron / steel), glass: BufferGeometry (lit), lights: [[x, y, z], ...] (lamp
 // centres in the model frame) }. +x is the reach toward the street; wall models have their origin on the wall at the
-// bracket's height, standing models at the foot of the post.
+// bracket's height, standing models at the foot of the post. Low detail on purpose: the silhouette only.
 function buildModels() {
   const models = [];
-  // wallLantern: plate, arm, curved brace, two curls, a short socket and the lantern
+  // wallLantern: plate, arm and the lantern
   {
     const L = lantern(1);
     const body = [
       box(0.04, 0.46, 0.13, 0.02, -0.14, 0),
       box(0.74, 0.035, 0.04, 0.38, 0, 0),
-      arc(0.36, Math.PI / 2, Math.PI, 0.38, -0.36),
-      arc(0.06, 0, Math.PI * 1.6, 0.62, -0.07, 0.013),
-      arc(0.05, Math.PI, Math.PI * 2.6, 0.1, -0.32, 0.013),
-      cyl(0.022, 0.03, 0.09, 6, 0.7, 0.06, 0),
       ...L.frame.map((g) => g.translate(0.7, 0.1, 0))
     ];
     models[T.WALL_LANTERN] = { body: nonIndexed(body), glass: nonIndexed(L.glass.map((g) => g.translate(0.7, 0.1, 0))), lights: [[0.7, 0.38, 0]] };
   }
-  // column: moulded plinth, bulging foot, ringed shaft, capital, lantern
+  // column: plinth, tapered shaft, capital, lantern
   {
     const L = lantern(1.08);
     const top = 3.72;
     const body = [
-      cyl(0.17, 0.21, 0.55, 8, 0, 0.275, 0),
-      cyl(0.19, 0.19, 0.06, 8, 0, 0.58, 0),
-      cyl(0.085, 0.13, 0.6, 8, 0, 0.91, 0),
-      cyl(0.058, 0.078, 2.3, 8, 0, 2.35, 0),
-      cyl(0.095, 0.095, 0.05, 8, 0, 1.24, 0),
-      cyl(0.085, 0.085, 0.05, 8, 0, 3.4, 0),
-      cyl(0.13, 0.06, 0.18, 8, 0, 3.6, 0),
+      cyl(0.17, 0.21, 0.6, 6, 0, 0.3, 0),
+      cyl(0.058, 0.11, 3.1, 6, 0, 2.15, 0),
+      cyl(0.13, 0.06, 0.18, 6, 0, 3.6, 0),
       ...L.frame.map((g) => g.translate(0, top, 0))
     ];
     models[T.COLUMN] = { body: nonIndexed(body), glass: nonIndexed(L.glass.map((g) => g.translate(0, top, 0))), lights: [[0, top + 0.32, 0]] };
   }
-  // candelabra: tall plinth, shaft, scrolled cross-arm with two lanterns and one on top
+  // candelabra: tall plinth, shaft, cross-arm with two lanterns and one on top
   {
     const body = [
-      cyl(0.22, 0.29, 0.95, 8, 0, 0.475, 0),
-      cyl(0.26, 0.26, 0.07, 8, 0, 0.98, 0),
-      cyl(0.1, 0.15, 0.7, 8, 0, 1.36, 0),
-      cyl(0.07, 0.095, 2.6, 8, 0, 3.0, 0),
-      cyl(0.11, 0.11, 0.06, 8, 0, 1.75, 0),
-      cyl(0.105, 0.105, 0.06, 8, 0, 4.15, 0),
-      cyl(0.15, 0.07, 0.2, 8, 0, 4.4, 0),
+      cyl(0.22, 0.29, 1.0, 6, 0, 0.5, 0),
+      cyl(0.07, 0.14, 3.7, 6, 0, 2.85, 0),
       box(1.56, 0.045, 0.045, 0, 4.62, 0),
-      arc(0.38, Math.PI, Math.PI * 2, 0.38, 4.62, 0.018),
-      arc(0.38, Math.PI, Math.PI * 2, -0.38, 4.62, 0.018),
-      arc(0.07, 0, Math.PI * 1.7, 0.62, 4.5, 0.014),
-      arc(0.07, Math.PI, Math.PI * 2.7, -0.62, 4.5, 0.014),
-      cyl(0.04, 0.06, 0.45, 8, 0, 4.85, 0),
-      cyl(0.025, 0.03, 0.1, 6, 0.76, 4.68, 0),
-      cyl(0.025, 0.03, 0.1, 6, -0.76, 4.68, 0)
+      cyl(0.04, 0.06, 0.45, 4, 0, 4.85, 0)
     ];
     const glass = [];
     const lights = [];
@@ -106,45 +81,41 @@ function buildModels() {
     }
     models[T.CANDELABRA] = { body: nonIndexed(body), glass: nonIndexed(glass), lights: [[0, 5.0, 0]] };
   }
-  // modernWall: wall plate, rising tubular arm, flat head with its lens underneath
+  // modernWall: wall plate, rising arm, flat head with its lens underneath
   {
     const tilt = 0.17;
     const body = [
       box(0.05, 0.26, 0.16, 0.025, 0, 0),
-      cyl(0.03, 0.03, 1.05, 6, 0, 0, 0).rotateZ(Math.PI / 2 - tilt).translate(0.55, 0.52 * Math.sin(tilt) + 0.02, 0),
+      cyl(0.03, 0.03, 1.05, 4, 0, 0, 0).rotateZ(Math.PI / 2 - tilt).translate(0.55, 0.52 * Math.sin(tilt) + 0.02, 0),
       box(0.62, 0.1, 0.28, 0, 0, 0).rotateZ(tilt * 0.4).translate(1.28, 0.21, 0)
     ];
     const glass = [new THREE.PlaneGeometry(0.54, 0.22).rotateX(Math.PI / 2).rotateZ(tilt * 0.4).translate(1.28, 0.155, 0)];
     models[T.MODERN_WALL] = { body: nonIndexed(body), glass: nonIndexed(glass), lights: [[1.3, 0.1, 0]] };
   }
-  // streetPole: tapered pole, flange, rising arm, disc
+  // streetPole: tapered pole, rising arm, disc
   {
     const H = 8;
     const body = [
-      cyl(0.15, 0.15, 0.05, 8, 0, 0.025, 0),
-      cyl(0.055, 0.09, H, 8, 0, H / 2, 0),
-      cyl(0.03, 0.035, 1.3, 6, 0, 0, 0).rotateZ(Math.PI / 2 - 0.14).translate(0.64, H - 0.05 + 0.09, 0),
-      cyl(0.3, 0.27, 0.1, 16, 1.38, H + 0.1, 0),
-      cyl(0.1, 0.16, 0.08, 10, 1.38, H + 0.19, 0)
+      cyl(0.055, 0.09, H, 6, 0, H / 2, 0),
+      cyl(0.03, 0.035, 1.3, 4, 0, 0, 0).rotateZ(Math.PI / 2 - 0.14).translate(0.64, H - 0.05 + 0.09, 0),
+      cyl(0.3, 0.27, 0.12, 8, 1.38, H + 0.1, 0)
     ];
-    const glass = [new THREE.CircleGeometry(0.255, 16).rotateX(Math.PI / 2).translate(1.38, H + 0.045, 0)];
+    const glass = [new THREE.CircleGeometry(0.255, 8).rotateX(Math.PI / 2).translate(1.38, H + 0.035, 0)];
     models[T.STREET_POLE] = { body: nonIndexed(body), glass: nonIndexed(glass), lights: [[1.38, H, 0]] };
   }
   // avenuePole: tall pole, roadway arm & disc, a lower sidewalk arm & disc on the other side
   {
     const H = 11;
     const body = [
-      cyl(0.18, 0.18, 0.06, 8, 0, 0.03, 0),
-      cyl(0.07, 0.125, H, 8, 0, H / 2, 0),
-      cyl(0.035, 0.04, 1.9, 6, 0, 0, 0).rotateZ(Math.PI / 2 - 0.12).translate(0.94, H - 0.04 + 0.11, 0),
-      cyl(0.37, 0.33, 0.12, 16, 1.95, H + 0.17, 0),
-      cyl(0.12, 0.2, 0.1, 10, 1.95, H + 0.28, 0),
-      cyl(0.025, 0.03, 0.85, 6, 0, 0, 0).rotateZ(Math.PI / 2).translate(-0.45, 4.6, 0),
-      cyl(0.24, 0.215, 0.09, 14, -0.98, 4.62, 0)
+      cyl(0.07, 0.125, H, 6, 0, H / 2, 0),
+      cyl(0.035, 0.04, 1.9, 4, 0, 0, 0).rotateZ(Math.PI / 2 - 0.12).translate(0.94, H - 0.04 + 0.11, 0),
+      cyl(0.37, 0.33, 0.14, 8, 1.95, H + 0.17, 0),
+      cyl(0.025, 0.03, 0.85, 4, 0, 0, 0).rotateZ(Math.PI / 2).translate(-0.45, 4.6, 0),
+      cyl(0.24, 0.215, 0.09, 8, -0.98, 4.62, 0)
     ];
     const glass = [
-      new THREE.CircleGeometry(0.315, 16).rotateX(Math.PI / 2).translate(1.95, H + 0.105, 0),
-      new THREE.CircleGeometry(0.2, 14).rotateX(Math.PI / 2).translate(-0.98, 4.57, 0)
+      new THREE.CircleGeometry(0.315, 8).rotateX(Math.PI / 2).translate(1.95, H + 0.095, 0),
+      new THREE.CircleGeometry(0.2, 8).rotateX(Math.PI / 2).translate(-0.98, 4.57, 0)
     ];
     models[T.AVENUE_POLE] = { body: nonIndexed(body), glass: nonIndexed(glass), lights: [[1.95, H + 0.05, 0], [-0.98, 4.5, 0]] };
   }
@@ -210,6 +181,9 @@ export function buildStreetLamps(opts = {}) {
     inst.receiveShadow = shadow;
     inst.computeBoundingSphere();
     inst.name = 'StreetLamps';
+    // Draw distance (scene-culling.js): a 0.3 m post is under a pixel wide beyond ~300 m, yet the island's ~29,000 lamps
+    // drawn out to the far plane cost a quarter of the frame; the lit lanterns read further at night
+    inst.userData.cullDistance = shadow ? 300 : 600;
     meshes.push(inst);
   };
   byType.forEach((list, t) => {

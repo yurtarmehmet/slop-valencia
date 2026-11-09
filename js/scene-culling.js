@@ -165,7 +165,8 @@ function setupSceneCulling(scene, roots, shadow = null) {
   for (const mesh of chunkable) {
     // unlit (glowing) props, like signal lenses & lamp bulbs, read from much further away at night
     const glow = mesh.material.isMeshBasicNodeMaterial || mesh.material.type === 'MeshBasicNodeMaterial' ? 3 : 1;
-    const cullDist = Math.max(CULL_MIN, instanceSize(mesh) * CULL_PER_METRE * glow);
+    // a mesh may set its own (userData.cullDistance, e.g. street-lamps.js)
+    const cullDist = mesh.userData.cullDistance ?? Math.max(CULL_MIN, instanceSize(mesh) * CULL_PER_METRE * glow);
     if (cullDist > CULL_MAX) {
       largeMeshes.push(mesh);
       continue;
