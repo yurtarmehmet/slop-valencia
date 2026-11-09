@@ -5,3 +5,4 @@ reference/*.jpg
 .cache/
 .fidelity/
 __pycache__/
+docs/

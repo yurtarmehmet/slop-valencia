@@ -1,67 +1,68 @@
 # Slop València
 
-València en 3D con [three.js](https://threejs.org/), WebGPURenderer y TSL, a escala real:
-- Ciutat Vella con el Micalet, la catedral, la Llotja y las torres de Serrans y Quart
-- el Ensanche y Russafa, con su Mercat de Russafa de lamas de colores
-- el Jardí del Túria, la Ciutat de les Arts i les Ciències, Mestalla
-- el puerto, la Marina y la Malva-rosa
+València in 3D at 1:1, built with [three.js](https://threejs.org/), WebGPURenderer and TSL:
+- Ciutat Vella with the Micalet, the cathedral, the Llotja and the Serrans and Quart towers
+- the Eixample and Russafa, with the colourful slats of the Mercat de Russafa
+- the Jardí del Túria, the Ciutat de les Arts i les Ciències, Mestalla
+- the port, the Marina and the Malva-rosa beach
 
-Recórrela a pie, en taxi, en bici, en patinete o en helicóptero.
+Explore it on foot, by taxi, by bike, by scooter or by helicopter.
 
-Es un remix de [Slop Barcelona](https://github.com/biko8/slop-barcelona), a su vez remix de
-[Slop New York](https://github.com/mrdoob/slop-newyork/): el mismo motor (tráfico, peatones, iluminación, materiales
-TSL, cámaras, audio) con la geografía y los edificios reales de València.
+**[Play it](https://yurtarmehmet.github.io/slop-valencia/)** (needs a browser with WebGPU)
 
-## Ejecutarlo
+A remix of [Slop Barcelona](https://github.com/biko8/slop-barcelona), itself a remix of
+[Slop New York](https://github.com/mrdoob/slop-newyork/): the same engine (traffic, pedestrians, lighting, TSL
+materials, cameras, audio) with València's real geography and buildings.
 
-Es una web estática: sírvela con cualquier servidor (`python3 -m http.server`) y abre `index.html` en un navegador
-con WebGPU. La primera carga baja unos 5 MB (código, edificios, árboles y la ortofoto del entorno).
+## Running it
 
-## Qué es real
+It's a static site: serve it with any web server (`python3 -m http.server`) and open `index.html` in a browser with
+WebGPU. The first load downloads about 5 MB (code, buildings, trees and the surrounding orthophoto).
 
-- **Calles, manzanas, parques, costa:** OpenStreetMap (`tools/bcn-extract.py`, `tools/build-bcn-geodata.mjs`). El marco
-  del mundo: 1 unidad = 1 m, origen en la Plaça de l'Ajuntament, ejes girados −28,6° con la cuadrícula del Ensanche.
-- **Edificios:** los 20.028 edificios del Catastro en la ciudad detallada, a su altura medida por PNOA-LiDAR. Por
-  área, el 94 % de las alturas vienen directamente del LiDAR. Los tejados también salen del LiDAR: azoteas a su cota
-  real, 557 tejados a dos aguas y 8.894 casetones. El color de cada tejado sale de la ortofoto PNOA.
-  `tools/realism/build-buildings.py` y `roof-colors.py` generan `js/vlc-buildings.bin.gz`.
-- **Fachadas:** paleta medida en fotos de referencia abiertas, asignada por año de construcción (Catastro), barrio y
-  altura: piedra crema del Ensanche, revocos ocre, salmón y almagra de Ciutat Vella, ladrillo de los 60-70, revoco
-  gris racionalista, blanco moderno, zócalos de azulejo en los Poblats Marítims.
-- **Monumentos:** modelos procedurales propios, dimensionados con el perfil LiDAR de cada uno y con colisiones con la
-  forma de su planta
-  (`tools/realism/landmark-heights.py` → `js/vlc-landmark-heights.js`).
-- **Árboles:** los 86.267 árboles del inventario municipal en la ciudad detallada, con su especie (naranjos, palmeras,
-  plátanos…) y su altura (`fetch-trees.py`, `build-trees.py` → `js/vlc-trees.bin.gz`).
-- **Suelo del entorno:** ortofoto PNOA (`make-ground.py` → `js/vlc-ground.jpg`).
-- **Gente:** además de los peatones de las aceras, la Plaça de l'Ajuntament está llena: 700 personas que pasean,
-  charlan en grupos y se paran a mirar (`js/plaza-crowd.js`).
-- **Comercios:** cada comercio, bar y restaurante de OpenStreetMap (6.403) tiene su rótulo en la fachada donde está,
-  sobre su escaparate. El rótulo dice solo el oficio (FORN, FARMÀCIA, BAR, FRUITERIA…), nunca el nombre del negocio, y
-  sin marcas ni logotipos. Las farmacias llevan su cruz verde y los locales vacíos el cartel de ES LLOGA / SE ALQUILA
+## What's real
+
+- **Streets, blocks, parks, coastline:** OpenStreetMap (`tools/bcn-extract.py`, `tools/build-bcn-geodata.mjs`). World
+  frame: 1 unit = 1 m, origin at the Plaça de l'Ajuntament, axes rotated −28.6° to match the Eixample grid.
+- **Buildings:** all 20,028 Catastro buildings in the detailed city, at their height measured by PNOA-LiDAR. By area,
+  94 % of the heights come straight from the LiDAR. Roofs come from the LiDAR too: flat roofs at their real level, 557
+  gabled roofs and 8,894 rooftop structures. Each roof's colour is taken from the PNOA orthophoto.
+  `tools/realism/build-buildings.py` and `roof-colors.py` produce `js/vlc-buildings.bin.gz`.
+- **Facades:** a palette measured from open reference photos, assigned by year of construction (Catastro),
+  neighbourhood and height: the cream stone of the Eixample, the ochre, salmon and red-oxide renders of Ciutat Vella,
+  1960s-70s brick, grey rationalist render, modern white, and tiled plinths in the Poblats Marítims.
+- **Landmarks:** our own procedural models, sized from each one's LiDAR profile, with collisions that follow their
+  footprint (`tools/realism/landmark-heights.py` → `js/vlc-landmark-heights.js`).
+- **Trees:** all 86,267 trees of the city's tree inventory in the detailed city, with their species (orange trees, palms,
+  plane trees…) and height (`fetch-trees.py`, `build-trees.py` → `js/vlc-trees.bin.gz`).
+- **Surrounding ground:** PNOA orthophoto (`make-ground.py` → `js/vlc-ground.jpg`).
+- **People:** besides the pedestrians on the pavements, the Plaça de l'Ajuntament is full: 700 people strolling,
+  chatting in groups and stopping to look around (`js/plaza-crowd.js`).
+- **Shops:** every shop, bar and restaurant in OpenStreetMap (6,403) has its sign on its own facade, above its window.
+  The sign only names the trade (FORN, FARMÀCIA, BAR, FRUITERIA…), never the business, with no brands or logos.
+  Pharmacies carry their green cross and empty premises an ES LLOGA / SE ALQUILA sign
   (`tools/shops-extract.py`, `tools/build-shops.mjs` → `js/vlc-shops.js`, `js/shop-signs.js`).
-- **Autobuses y taxis:** los autobuses llevan líneas y destinos reales de la EMT (relaciones de OpenStreetMap), sin
-  logotipo. Los taxis son blancos, como en València, rotulados con TAXI y su licencia.
-- **Sol:** su posición real sobre València (39,47° N) en cada momento del día.
+- **Buses and taxis:** buses show real EMT lines and destinations (OpenStreetMap route relations), without the logo.
+  Taxis are white, as in València, marked TAXI with their licence number.
+- **Sun:** its real position over València (39.47° N) at every time of day.
 
-Comprobaciones, contra datos que la construcción no usa (`tools/realism/verify.py`, `docs/realism-plan.md`):
+Checked against data the build doesn't use (`tools/realism/verify.py`):
 
-| Comprobación | Resultado |
+| Check | Result |
 |---|---|
-| Alturas frente al vuelo LiDAR independiente de 2015 | mediana 0,18 m (antes 5,18 m) |
-| Cota de las azoteas | mediana 0,11 m |
-| Huellas frente al Catastro | IoU 0,90 |
-| Desplazamiento frente al LiDAR | 0–1 m |
-| Alturas de 17 monumentos frente al LiDAR | dentro del 2 % |
+| Heights vs the independent 2015 LiDAR flight | median 0.18 m (was 5.18 m) |
+| Flat roof level | median 0.11 m |
+| Footprints vs Catastro | IoU 0.90 |
+| Offset vs LiDAR | 0–1 m |
+| Heights of 17 landmarks vs LiDAR | within 2 % |
 
-## Reconstruir los datos
+## Rebuilding the data
 
-Hace falta un entorno con GDAL, PDAL y GeoPandas (conda-forge: `gdal pdal python-pdal geopandas rasterio`). Los pasos
-y fuentes exactas están en `docs/realism-plan.md`:
-- descarga del Catastro (con su certificado raíz FNMT)
-- teselas LiDAR del CNIG
-- WMTS del IGN
-- API CKAN de València
+You need an environment with GDAL, PDAL and GeoPandas (conda-forge: `gdal pdal python-pdal geopandas rasterio`). The
+scripts are in `tools/` and fetch from:
+- the Catastro download service (with its FNMT root certificate)
+- CNIG LiDAR tiles
+- the IGN WMTS
+- València's CKAN open data API
 
 ## Tests
 
@@ -69,44 +70,52 @@ y fuentes exactas están en `docs/realism-plan.md`:
 node --test tests/*.test.cjs tests/*.test.mjs
 ```
 
-## Licencia y datos
+## Licence and data
 
-El código está bajo la [licencia MIT](LICENSE) (© Mr.doob y colaboradores).
+The code is under the [MIT licence](LICENSE) (© Mr.doob and contributors).
 
-Datos:
-- © [colaboradores de OpenStreetMap](https://www.openstreetmap.org/copyright) (ODbL 1.0); los datos derivados de OSM en
-  `js/` siguen bajo ODbL
-- edificios: Dirección General del Catastro (INSPIRE Buildings, uso libre con mención)
-- LiDAR: LiDAR-PNOA-cob3 2022-2025 y PNOA 2015, CC BY 4.0 scne.es
-- ortofoto: PNOA cedido por © Instituto Geográfico Nacional, CC BY 4.0 scne.es
-- Font: Ajuntament de València, [portal de datos abiertos](https://opendata.vlci.valencia.es/) (CC BY 4.0). Conjuntos
-  usados (descargas, sumas y fechas en `tools/data/vlci-manifest.json`):
-  - [Arbolado](https://opendata.vlci.valencia.es/dataset/arbratge-arbolado): árboles
-  - [Mobiliario urbano](https://opendata.vlci.valencia.es/dataset/servicios-e-instalaciones): farolas
-  - [Cartografía Base Bordillos](https://opendata.vlci.valencia.es/dataset/cartografia-base-vorades-bordillos): bordillos, imbornales y plazas de aparcamiento
-  - [Señalización Horizontal](https://opendata.vlci.valencia.es/dataset/senalizacion-horizontal): marcas viales
-  - [Aparcamientos no Regulados](https://opendata.vlci.valencia.es/dataset/aparcaments-no-regulats-aparcamientos-no-regulados): coches aparcados
-  - [Aparcamientos ORA](https://opendata.vlci.valencia.es/dataset/aparcaments-ora-aparcamientos-ora): coches aparcados
-  - [Aparcamiento para motos](https://opendata.vlci.valencia.es/dataset/aparcament-per-a-motos-aparcamiento-para-motos): motos aparcadas
-  - [Taxis](https://opendata.vlci.valencia.es/dataset/taxis): paradas de taxi
-  - [Imbornales](https://opendata.vlci.valencia.es/dataset/embornals-imbornales): imbornales
-  - [Contenedores residuos sólidos](https://opendata.vlci.valencia.es/dataset/contenidors-residus-solids-contenidores-residuos-solidos): contenedores
-  - [Contenedores Vidrio](https://opendata.vlci.valencia.es/dataset/contenidors-vidre-contenedores-vidrio): contenedores
-  - [Papeleras](https://opendata.vlci.valencia.es/dataset/papereres-papeleras): papeleras
-  - [Bancos en vía pública](https://opendata.vlci.valencia.es/dataset/bancs-en-via-publica-bancos-en-via-publica): bancos
-  - [Fuentes de Agua Pública](https://opendata.vlci.valencia.es/dataset/fonts-daigua-publica-fuentes-de-agua-publica): fuentes
-  - [Bolardos extraibles](https://opendata.vlci.valencia.es/dataset/pilons-extraibles-bolardos-extraibles): bolardos
-  - [Aparcamientos Bicicletas](https://opendata.vlci.valencia.es/dataset/aparcaments-bicicletes-aparcamientos-bicicletas): aparcabicis
-  - [EMT](https://opendata.vlci.valencia.es/dataset/emt): paradas de autobús
-  - [Quiosco ONCE](https://opendata.vlci.valencia.es/dataset/quiosc-once-quiosco-once): quioscos
-  - [Quioscos flores](https://opendata.vlci.valencia.es/dataset/quioscs-flors-quioscos-flores): quioscos
-  - [Quioscos prensa](https://opendata.vlci.valencia.es/dataset/quioscs-premsa-quioscos-prensa): quioscos
-  - [Cartografía Base Toponimia](https://opendata.vlci.valencia.es/dataset/cartografia-base-toponimia-toponimia): placas de calle
-  - [Ejes lineales de las calles](https://opendata.vlci.valencia.es/dataset/eixos-lineals-dels-carrers): placas de calle
-  - [Portales de las calles](https://opendata.vlci.valencia.es/dataset/portals-dels-carrers-portales-de-las-calles): números de portal
-  - [Manzanas catastrales con datos de población](https://opendata.vlci.valencia.es/dataset/illa-de-cases-cadastrals-amb-dades-de-poblacio): densidad de peatones
-  - [Barrios](https://opendata.vlci.valencia.es/dataset/barris-barrios): densidad de peatones
-  - [Aparcamientos por distritos-barrios](https://opendata.vlci.valencia.es/dataset/car-parks-by-districts-neighborhoods): densidad de peatones
+Data:
+- © [OpenStreetMap contributors](https://www.openstreetmap.org/copyright) (ODbL 1.0); the OSM-derived data in `js/`
+  stays under the ODbL
+- buildings: Dirección General del Catastro (INSPIRE Buildings, free to use with attribution)
+- LiDAR: LiDAR-PNOA-cob3 2022-2025 and PNOA 2015, CC BY 4.0 scne.es
+- orthophoto: PNOA courtesy of © Instituto Geográfico Nacional, CC BY 4.0 scne.es
+- Font: Ajuntament de València, [open data portal](https://opendata.vlci.valencia.es/) (CC BY 4.0). Datasets
+  used (downloads, checksums and dates in `tools/data/vlci-manifest.json`):
+  - [Arbolado](https://opendata.vlci.valencia.es/dataset/arbratge-arbolado): trees
+  - [Mobiliario urbano](https://opendata.vlci.valencia.es/dataset/servicios-e-instalaciones): street lamps
+  - [Cartografía Base Bordillos](https://opendata.vlci.valencia.es/dataset/cartografia-base-vorades-bordillos): kerbs, drains and parking bays
+  - [Señalización Horizontal](https://opendata.vlci.valencia.es/dataset/senalizacion-horizontal): road markings
+  - [Aparcamientos no Regulados](https://opendata.vlci.valencia.es/dataset/aparcaments-no-regulats-aparcamientos-no-regulados): parked cars
+  - [Aparcamientos ORA](https://opendata.vlci.valencia.es/dataset/aparcaments-ora-aparcamientos-ora): parked cars
+  - [Aparcamiento para motos](https://opendata.vlci.valencia.es/dataset/aparcament-per-a-motos-aparcamiento-para-motos): parked motorbikes
+  - [Taxis](https://opendata.vlci.valencia.es/dataset/taxis): taxi ranks
+  - [Imbornales](https://opendata.vlci.valencia.es/dataset/embornals-imbornales): drains
+  - [Contenedores residuos sólidos](https://opendata.vlci.valencia.es/dataset/contenidors-residus-solids-contenidores-residuos-solidos): bins
+  - [Contenedores Vidrio](https://opendata.vlci.valencia.es/dataset/contenidors-vidre-contenedores-vidrio): bins
+  - [Papeleras](https://opendata.vlci.valencia.es/dataset/papereres-papeleras): litter bins
+  - [Bancos en vía pública](https://opendata.vlci.valencia.es/dataset/bancs-en-via-publica-bancos-en-via-publica): benches
+  - [Fuentes de Agua Pública](https://opendata.vlci.valencia.es/dataset/fonts-daigua-publica-fuentes-de-agua-publica): drinking fountains
+  - [Bolardos extraibles](https://opendata.vlci.valencia.es/dataset/pilons-extraibles-bolardos-extraibles): bollards
+  - [Aparcamientos Bicicletas](https://opendata.vlci.valencia.es/dataset/aparcaments-bicicletes-aparcamientos-bicicletas): bike racks
+  - [EMT](https://opendata.vlci.valencia.es/dataset/emt): bus stops
+  - [Quiosco ONCE](https://opendata.vlci.valencia.es/dataset/quiosc-once-quiosco-once): kiosks
+  - [Quioscos flores](https://opendata.vlci.valencia.es/dataset/quioscs-flors-quioscos-flores): kiosks
+  - [Quioscos prensa](https://opendata.vlci.valencia.es/dataset/quioscs-premsa-quioscos-prensa): kiosks
+  - [Cartografía Base Toponimia](https://opendata.vlci.valencia.es/dataset/cartografia-base-toponimia-toponimia): street-name plates
+  - [Ejes lineales de las calles](https://opendata.vlci.valencia.es/dataset/eixos-lineals-dels-carrers): street-name plates
+  - [Portales de las calles](https://opendata.vlci.valencia.es/dataset/portals-dels-carrers-portales-de-las-calles): door numbers
+  - [Manzanas catastrales con datos de población](https://opendata.vlci.valencia.es/dataset/illa-de-cases-cadastrals-amb-dades-de-poblacio): pedestrian density
+  - [Barrios](https://opendata.vlci.valencia.es/dataset/barris-barrios): pedestrian density
+  - [Aparcamientos por distritos-barrios](https://opendata.vlci.valencia.es/dataset/car-parks-by-districts-neighborhoods): pedestrian density
 
-Las fotos de referencia usadas para calibrar fachadas son de Wikimedia Commons (CC BY / CC BY-SA). Solo se usaron como
-referencia visual y no se distribuyen; sus autores están en `reference/credits.json`.
+The reference photos used to calibrate the facades are from Wikimedia Commons (CC BY / CC BY-SA). They were
+only used as a visual reference and are not distributed; their authors are listed in `reference/credits.json`.
+
+## En español
+
+València en 3D a escala real con three.js, WebGPURenderer y TSL: Ciutat Vella, el Ensanche y Russafa, el Jardí del
+Túria, la Ciutat de les Arts i les Ciències, el puerto y la Malva-rosa. Los 20.028 edificios del Catastro a su altura
+medida por LiDAR, los 86.267 árboles del inventario municipal y los rótulos de 6.403 comercios. Recórrela a pie, en
+taxi, en bici, en patinete o en helicóptero. Es un remix de Slop Barcelona, a su vez remix de Slop New York.
+**[Jugar](https://yurtarmehmet.github.io/slop-valencia/)**
